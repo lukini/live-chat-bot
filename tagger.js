@@ -45,14 +45,20 @@ const tagger = {
         }
     },
 
-    deleteTag: (messageId) => {
-        if (this.tags[messageId]) {
+    deleteTag: (messageId, userId) => {
+        if (this.tags[messageId] &&
+            (!userId || this.tags[messageId].authorId === userId)) {
             delete this.tags[messageId];
         }
     },
 
     deleteTags: () => {
         this.tags = [];
+        this.streamStart = null;
+        this.streamEnd = null;
+        this.streamUrl = null;
+        // testing value
+        this.autoStreamUrl = null;
     },
 
     listTags: (userId) => {

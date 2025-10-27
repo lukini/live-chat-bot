@@ -150,7 +150,7 @@ async function handleReactionAdd(reaction, user) {
             tagger.addStar(reaction.message.id);
             break;
         case '❌':
-            tagger.deleteTag(reaction.message.id);
+            tagger.deleteTag(reaction.message.id, user.id);
             break;
         default:
             break;
