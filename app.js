@@ -179,7 +179,7 @@ async function handleReactionRemove(reaction, user) {
 function parseCommand(content) {
     const index = content.indexOf(' ');
     let command, args;
-    if (index === -1) {
+    if (index > 0) {
         command = content.substring(0, index).toLowerCase();
         args = content.substring(index + 1).trim();
     } else {
