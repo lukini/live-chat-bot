@@ -34,7 +34,7 @@ const tagger = {
     },
 
     removeStar: (messageId) => {
-        if (this.tags[messageId] && this.tags[messageId].stars > 0) {
+        if (this.tags[messageId]?.stars > 0) {
             this.tags[messageId].stars--;
         }
     },

@@ -85,10 +85,11 @@ async function checkForVod(userId, streamTitle) {
 
 
 function handleNewMessage(message) {
+    if (message.channel.id !== config.liveChatChannel) return;
     if (message.author.bot) return;
 
     const content = message.content;
-    const { command, args } = parseCommand(content);
+    let { command, args } = parseCommand(content);
     let response;
 
     // mod commands
@@ -112,10 +113,15 @@ function handleNewMessage(message) {
 }
 
 function handleMessageDeletion(message) {
-    tagger.deleteTag(message.id);
+    if (message.channel.id !== config.liveChatChannel) return;
+    
+    if (reaction.message.content.startsWith('`')) {
+        tagger.deleteTag(message.id);
+    }
 }
 
 function handleMessageUpdate(oldMessage, newMessage) {
+    if (oldMessage.channel.id !== config.liveChatChannel) return;
     if (oldMessage.author.bot) return;
     if (oldMessage.content === newMessage.content) return;
 
@@ -130,6 +136,9 @@ function handleMessageUpdate(oldMessage, newMessage) {
 }
 
 async function handleReactionAdd(reaction, user) {
+    if (reaction.message.channel.id !== config.liveChatChannel) return;
+    if (!reaction.message.content.startsWith('`')) return;
+
     try {
         await reaction.fetch();
     } catch (error) {
@@ -149,6 +158,9 @@ async function handleReactionAdd(reaction, user) {
 }
 
 async function handleReactionRemove(reaction, user) {
+    if (reaction.message.channel.id !== config.liveChatChannel) return;
+    if (!reaction.message.content.startsWith('`')) return;
+
     try {
         await reaction.fetch();
     } catch (error) {
