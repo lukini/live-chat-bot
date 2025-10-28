@@ -18,13 +18,13 @@ const tagger = {
     createTag: (message) => {
         const tag = {
             authorId: message.author.id,
-            messageId: message.id,
             message: message.content,
             time: message.createdAt,
             stars: 0
         };
-        this.tags[tag.messageId] = tag;
-        return tag;
+        message.react('⭐').then(() => message.react('❌'))
+            .catch(err => err && console.error(err));
+        this.tags[message.id] = tag;
     },
 
     addStar: (messageId) => {
@@ -65,18 +65,28 @@ const tagger = {
         const tagList = userId ?
             this.tags.filter(tag => tag.authorId === userId) :
             this.tags;
-        let response = '##Tags:\n';
+        const lines = [], messages = [];
+        lines.push('##Tags:\n');
         const minutes = this.calculateMinutes();
-        response += `Stream start ${tagList.length} tags (${(minutes / tagList.length).toPrecision(2)}/min)\n`;
-        tagList.forEach(tag => {
-            response += `> ${tag.message}`;
+        lines.push(`Stream start ${tagList.length} tags (${(minutes / tagList.length).toPrecision(2)}/min)\n`);
+        tagList.forEach((tag, index) => {
+            let message = `> ${tag.message}`;
             if (tag.stars > 0) {
-                response += ` (${tag.stars})`;
+                message += ` (${tag.stars})`;
             }
             const offset = this.calculateOffset(tag.time);
-            response += ` [${offset}](${streamUrl}?t=${offset})\n`;
-        })
-        return response;
+            if (this.streamUrl) {
+                message += ` [${offset}](${streamUrl}?t=${offset})\n`;
+            } else {
+                message += ` ${offset}\n`;
+            }
+            lines.push(message);
+        });
+        
+        for (let i = 0; i < lines.length; i += 22) {
+            messages.push(lines.slice(i, i + 22).join(''));
+        }
+        return messages;
     },
 
     calculateMinutes: () => {

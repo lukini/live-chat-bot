@@ -75,8 +75,10 @@ async function checkForVod(userId, streamTitle) {
         const latestVideo = videos.data[0];
         if (latestVideo.title === streamTitle) {
             tagger.autoStreamUrl = latestVideo.url;
+            return;
         }
-    } else if (retryCount < 5) {
+    }
+    if (retryCount < 5) {
         setTimeout(() => {
             checkForVod(userId, streamTitle, retryCount + 1);
         }, 5 * 60 * 1000); // wait 5 minutes
@@ -84,7 +86,7 @@ async function checkForVod(userId, streamTitle) {
 }
 
 
-function handleNewMessage(message) {
+async function handleNewMessage(message) {
     if (message.channel.id !== config.liveChatChannel) return;
     if (message.author.bot) return;
 
@@ -108,7 +110,13 @@ function handleNewMessage(message) {
     
     if (response) {
         const channel = client.channels.cache.get(message.channel.id);
-        channel.send(response);
+        if (Array.isArray(response)) {
+            for (res of response) {
+                await channel.send(res);
+            }
+        } else {
+            channel.send(response);
+        }
     }
 }
 
@@ -135,44 +143,34 @@ function handleMessageUpdate(oldMessage, newMessage) {
     }
 }
 
-async function handleReactionAdd(reaction, user) {
+function handleReactionAdd(reaction, user) {
     if (reaction.message.channel.id !== config.liveChatChannel) return;
-    if (!reaction.message.content.startsWith('`')) return;
-
-    try {
-        await reaction.fetch();
-    } catch (error) {
-        return;
-    }
-
-    switch (reaction.emoji.name) {
-        case '⭐':
-            tagger.addStar(reaction.message.id);
-            break;
-        case '❌':
-            tagger.deleteTag(reaction.message.id, user.id);
-            break;
-        default:
-            break;
+    
+    if (reaction.message.content.startsWith('`')) {
+        switch (reaction.emoji.name) {
+            case '⭐':
+                tagger.addStar(reaction.message.id);
+                break;
+            case '❌':
+                tagger.deleteTag(reaction.message.id, user.id);
+                break;
+            default:
+                break;
+        }
     }
 }
 
-async function handleReactionRemove(reaction, user) {
+function handleReactionRemove(reaction, user) {
     if (reaction.message.channel.id !== config.liveChatChannel) return;
-    if (!reaction.message.content.startsWith('`')) return;
-
-    try {
-        await reaction.fetch();
-    } catch (error) {
-        return;
-    }
-
-    switch (reaction.emoji.name) {
-        case '⭐':
-            tagger.removeStar(reaction.message.id);
-            break;
-        default:
-            break;
+    
+    if (reaction.message.content.startsWith('`')) {
+        switch (reaction.emoji.name) {
+            case '⭐':
+                tagger.removeStar(reaction.message.id);
+                break;
+            default:
+                break;
+        }
     }
 }
 
