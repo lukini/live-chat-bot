@@ -5,12 +5,14 @@ const commandHandler = {
     defaultUnlockMessage: 'henya time!',
     defaultLockMessage: 'see you next time!',
 
-    process: (command, userId, args) => {
+    process: (message, command, args) => {
         switch (command) {
             case 'tags':
-                return tagger.listTags(userId);
-            case 'twitch_start':
-                return tagger.setStream(args);
+                return tagger.listTags(message.author.id);
+            case 'adjust':
+                return tagger.adjustTime(message, args);
+            case 't':
+                return tagger.createTag(message);
             default:
                 break;
         }
@@ -19,17 +21,19 @@ const commandHandler = {
     processElevated: (command, args) => {
         switch (command) {
             case 'enableopen':
-                return setUnlockChannel(true, args);
+                return this.setUnlockChannel(true, args);
             case 'disableopen':
-                return setUnlockChannel(false, args);
+                return this.setUnlockChannel(false);
             case 'enableclose':
-                return setLockChannel(true, args);
+                return this.setLockChannel(true, args);
             case 'disableclose':
-                return setLockChannel(false, args);
+                return this.setLockChannel(false);
             case 'status':
-                return sendStatus();
+                return this.sendStatus();
             case 'tags':
-                return tagger.listTags(null);
+                return tagger.listTags();
+            case 'setstream':
+                return tagger.setStream(args);
             case 'checkurl':
                 return tagger.getAutoStreamUrl();
             default:
@@ -37,12 +41,13 @@ const commandHandler = {
         }
     },
 
+    //TODO: check emoji support
     setUnlockChannel: (open, message) => {
         config.states.unlockChannel = open;
         if (!!message) {
-            config.states.unlockChannelMessage = message;
-        } else if (!!config.states.unlockChannelMessage) {
-            config.states.unlockMessage = defaultUnlockMessage;
+            config.states.unlockMessage = message;
+        } else if (open && !config.states.unlockMessage) {
+            config.states.unlockMessage = this.defaultUnlockMessage;
         }
         config.saveState();
         return `${open ? 'Enabled' : 'Disabled'} automatic chat unlock.`;
@@ -52,8 +57,8 @@ const commandHandler = {
         config.states.lockChannel = close;
         if (!!message) {
             config.states.lockMessage = message;
-        } else if (!!config.states.lockMessage) {
-            config.states.lockMessage = defaultLockMessage;
+        } else if (close && !config.states.lockMessage) {
+            config.states.lockMessage = this.defaultLockMessage;
         }
         config.saveState();
         return `${close ? 'Enabled' : 'Disabled'} automatic chat lock.`

@@ -5,9 +5,9 @@ Features:
 - Prints out tags after stream
 
 Commands:
+- !t (or start message with `) - add a tag for the stream
+- !adjust - adjust the time (in seconds) for the last tag the current user created
 - !tags - list current user's tags
-- !twitch_start - set the stream url
-- ` - start a message with this character to add it to the tags for a stream
 
 Mod only commands (using default prefix):
 - l?enableopen - enable auto open with optional message
@@ -16,4 +16,5 @@ Mod only commands (using default prefix):
 - l?disableclose - disable auto close
 - l?status - show current status of auto open/close
 - l?tags - list all tags for the stream
+- l?setstream - sets the stream url (use only if the stream didn't get set)
 - l?checkurl - check current stream url grabbed by the bot
