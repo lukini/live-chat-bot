@@ -11,8 +11,6 @@ const commandHandler = {
                 return tagger.listTags(message.author.id);
             case 'adjust':
                 return tagger.adjustTime(message, args);
-            case 't':
-                return tagger.createTag(message);
             default:
                 break;
         }
@@ -50,7 +48,7 @@ const commandHandler = {
             config.states.unlockMessage = this.defaultUnlockMessage;
         }
         config.saveState();
-        return `${open ? 'Enabled' : 'Disabled'} automatic chat unlock.`;
+        return `${open ? 'Enabled' : 'Disabled'} automatic chat unlock`;
     },
 
     setLockChannel: function(close, message) {
@@ -61,7 +59,7 @@ const commandHandler = {
             config.states.lockMessage = this.defaultLockMessage;
         }
         config.saveState();
-        return `${close ? 'Enabled' : 'Disabled'} automatic chat lock.`
+        return `${close ? 'Enabled' : 'Disabled'} automatic chat lock`
     },
 
     sendStatus: function() {

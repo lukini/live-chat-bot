@@ -14,11 +14,11 @@ const tagger = {
         return this.autoStreamUrl;
     },
 
-    createTag: function(message) {
+    createTag: function(message, content) {
         const tag = {
             authorId: message.author.id,
             messageId: message.id,
-            message: message.content,
+            message: content,
             time: message.createdAt,
             stars: 0
         };
@@ -55,7 +55,7 @@ const tagger = {
     deleteTag: function(messageId, userId) {
         const index = this.tags.findIndex(t => t.messageId === messageId);
         if (index >= 0 && (!userId || this.tags[index].authorId === userId)) {
-            delete this.tags[index];
+            this.tags.splice(index, 1);
         }
     },
 
@@ -79,11 +79,12 @@ const tagger = {
         tagList = tagList.sort((a, b) => a.time - b.time);
         
         const lines = [], messages = [];
-        lines.push('> ### Tags:\n');
+        lines.push('>>> ### Tags:\n');
         const minutes = this.calculateMinutes();
-        lines.push(`> Stream start ${tagList.length} tags (${(minutes / tagList.length).toPrecision(2)}/min)\n`);
+        //TODO: add discord format for start time
+        lines.push(`Stream start ${tagList.length} tags (${(minutes / tagList.length).toPrecision(2)}/min)\n`);
         tagList.forEach(tag => {
-            let message = `> ${tag.message}`;
+            let message = `${tag.message}`;
             if (tag.stars > 0) {
                 message += ` (${tag.stars})`;
             }

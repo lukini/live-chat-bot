@@ -19,7 +19,6 @@ let modCommandChannel, apiClient;
 
 client.once(Events.ClientReady, () => {
     modCommandChannel = client.channels.cache.get(config.modCommandChannel);
-    console.log('bot started ' + modCommandChannel.id);
 
     //TODO: register app with twitch, get client id/secret
     const authProvider = new StaticAuthProvider(config.clientId, config.accessToken);
@@ -104,8 +103,7 @@ async function handleNewMessage(message) {
         response = commandHandler.process(message, command, args);
     } // handle tags
     else if (content.startsWith('`') && content.length > 1) {
-        message.content = content.substring(1).trim();
-        tagger.createTag(message);
+        tagger.createTag(message, content.substring(1).trim());
     }
     
     if (response) {
@@ -123,7 +121,7 @@ async function handleNewMessage(message) {
 function handleMessageDeletion(message) {
     if (message.channel.id !== config.liveChatChannel) return;
     
-    if (message.content.startsWith('`')) {
+    if (!message.content || message.content.startsWith('`')) {
         tagger.deleteTag(message.id);
     }
 }
@@ -145,6 +143,7 @@ function handleMessageUpdate(oldMessage, newMessage) {
 
 function handleReactionAdd(reaction, user) {
     if (reaction.message.channel.id !== config.liveChatChannel) return;
+    if (user.bot) return;
     
     if (reaction.message.content.startsWith('`')) {
         switch (reaction.emoji.name) {
@@ -162,6 +161,7 @@ function handleReactionAdd(reaction, user) {
 
 function handleReactionRemove(reaction, user) {
     if (reaction.message.channel.id !== config.liveChatChannel) return;
+    if (user.bot) return;
     
     if (reaction.message.content.startsWith('`')) {
         switch (reaction.emoji.name) {

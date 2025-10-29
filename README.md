@@ -5,7 +5,7 @@ Features:
 - Prints out tags after stream
 
 Commands:
-- !t (or start message with `) - add a tag for the stream
+- ` - start message with this to add a tag for the stream
 - !adjust - adjust the time (in seconds) for the last tag the current user created
 - !tags - list current user's tags
 
