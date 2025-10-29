@@ -6,15 +6,15 @@ const tagger = {
     // testing value
     autoStreamUrl: null,
 
-    setStream: (url) => {
+    setStream: function(url) {
         this.streamUrl = url;
     },
 
-    getAutoStreamUrl: () => {
+    getAutoStreamUrl: function() {
         return this.autoStreamUrl;
     },
 
-    createTag: (message) => {
+    createTag: function(message) {
         const tag = {
             authorId: message.author.id,
             messageId: message.id,
@@ -27,7 +27,7 @@ const tagger = {
         this.tags.push(tag);
     },
 
-    adjustTime: (message, offset) => {
+    adjustTime: function(message, offset) {
         const tag = this.tags.findLast(t => t.authorId === message.author.id);
         if (tag) {
             offset = parseInt(offset.trim());
@@ -40,30 +40,30 @@ const tagger = {
         }
     },
 
-    addStar: (messageId) => {
-        this.getTagByMessageId(messageId)?.stars++;
+    addStar: function(messageId) {
+        this.getTagByMessageId(messageId).stars++;
     },
 
-    removeStar: (messageId) => {
-        this.getTagByMessageId(messageId)?.stars--;
+    removeStar: function(messageId) {
+        this.getTagByMessageId(messageId).stars--;
     },
 
-    editTag: (messageId, newMessage) => {
-        this.getTagByMessageId(messageId)?.message = newMessage;
+    editTag: function(messageId, newMessage) {
+        this.getTagByMessageId(messageId).message = newMessage;
     },
 
-    deleteTag: (messageId, userId) => {
+    deleteTag: function(messageId, userId) {
         const index = this.tags.findIndex(t => t.messageId === messageId);
         if (index >= 0 && (!userId || this.tags[index].authorId === userId)) {
             delete this.tags[index];
         }
     },
 
-    getTagByMessageId: (messageId) => {
-        return this.tags.find(t => t.messageId === messageId);
+    getTagByMessageId: function(messageId) {
+        return this.tags.find(t => t.messageId === messageId) || {};
     },
 
-    deleteTags: () => {
+    deleteTags: function() {
         this.tags = [];
         this.streamStart = null;
         this.streamEnd = null;
@@ -72,16 +72,16 @@ const tagger = {
         this.autoStreamUrl = null;
     },
 
-    listTags: (userId) => {
+    listTags: function(userId) {
         let tagList = userId ?
             this.tags.filter(tag => tag.authorId === userId) :
             this.tags;
         tagList = tagList.sort((a, b) => a.time - b.time);
         
         const lines = [], messages = [];
-        lines.push('##Tags:\n');
+        lines.push('> ### Tags:\n');
         const minutes = this.calculateMinutes();
-        lines.push(`Stream start ${tagList.length} tags (${(minutes / tagList.length).toPrecision(2)}/min)\n`);
+        lines.push(`> Stream start ${tagList.length} tags (${(minutes / tagList.length).toPrecision(2)}/min)\n`);
         tagList.forEach(tag => {
             let message = `> ${tag.message}`;
             if (tag.stars > 0) {
@@ -89,7 +89,7 @@ const tagger = {
             }
             const offset = this.calculateOffset(tag.time);
             if (this.streamUrl) {
-                message += ` [${offset}](${streamUrl}?t=${offset})\n`;
+                message += ` [${offset}](${this.streamUrl}?t=${offset})\n`;
             } else {
                 message += ` ${offset}\n`;
             }
@@ -102,14 +102,14 @@ const tagger = {
         return messages;
     },
 
-    calculateMinutes: () => {
+    calculateMinutes: function() {
         const start = this.streamStart;
         const end = this.streamEnd || new Date();
         const diffMs = end - start;
         return Math.floor(diffMs / 60000);
     },
 
-    calculateOffset: (time) => {
+    calculateOffset: function(time) {
         const diffMs = time - this.streamStart;
         const sec = 1000, min = sec * 60, hr = min * 60;
         const diffSec = Math.floor((diffMs % min) / sec);

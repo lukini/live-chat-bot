@@ -1,12 +1,14 @@
-const { writeFile } = require('fs');
+import { writeFile } from 'fs';
 
-const configJson = require('./config.json');
-const state = require('./state.json');
+import configJson from './config.json' with { type: 'json' };
+import state from './state.json' with { type: 'json' };
 
-export const config = {
+const config = {
     ...configJson,
     states: state,
-    saveState: () => {
+    saveState: function() {
         writeFile('state.json', JSON.stringify(this.states), 'utf8', err => err && console.error(err));
     }
 };
+
+export default config;

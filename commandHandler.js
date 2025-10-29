@@ -1,11 +1,11 @@
-const config = require('./config.js');
-const tagger = require('./tagger.js');
+import config  from './config.js';
+import tagger from './tagger.js';
 
 const commandHandler = {
     defaultUnlockMessage: 'henya time!',
     defaultLockMessage: 'see you next time!',
 
-    process: (message, command, args) => {
+    process: function(message, command, args) {
         switch (command) {
             case 'tags':
                 return tagger.listTags(message.author.id);
@@ -18,7 +18,7 @@ const commandHandler = {
         }
     },
 
-    processElevated: (command, args) => {
+    processElevated: function(command, args) {
         switch (command) {
             case 'enableopen':
                 return this.setUnlockChannel(true, args);
@@ -42,7 +42,7 @@ const commandHandler = {
     },
 
     //TODO: check emoji support
-    setUnlockChannel: (open, message) => {
+    setUnlockChannel: function(open, message) {
         config.states.unlockChannel = open;
         if (!!message) {
             config.states.unlockMessage = message;
@@ -53,7 +53,7 @@ const commandHandler = {
         return `${open ? 'Enabled' : 'Disabled'} automatic chat unlock.`;
     },
 
-    setLockChannel: (close, message) => {
+    setLockChannel: function(close, message) {
         config.states.lockChannel = close;
         if (!!message) {
             config.states.lockMessage = message;
@@ -64,7 +64,7 @@ const commandHandler = {
         return `${close ? 'Enabled' : 'Disabled'} automatic chat lock.`
     },
 
-    sendStatus: () => {
+    sendStatus: function() {
         return `Unlock: ${config.states.unlockChannel}, Lock: ${config.states.lockChannel}`;
     }
 };

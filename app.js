@@ -1,11 +1,11 @@
-const { Client, Events, GatewayIntentBits } = require('discord.js');
-const { EventSubNgrokAdapter, EventSubHttpListener } = require('twitch-eventsub-ngrok');
-const { ApiClient } = require('@twurple/api');
-const { ClientCredentialsAuthProvider } = require('@twurple/auth');
+import { Client, Events, GatewayIntentBits } from 'discord.js';
+import { EventSubWsListener } from '@twurple/eventsub-ws';
+import { ApiClient } from '@twurple/api';
+import { StaticAuthProvider } from '@twurple/auth';
 
-const config = require('./config.js');
-const commandHandler = require('./commandHandler.js');
-const tagger = require('./tagger.js');
+import config from './config.js';
+import commandHandler from './commandHandler.js';
+import tagger from './tagger.js';
 
 const client = new Client({
     intents: [
@@ -18,16 +18,13 @@ const client = new Client({
 let modCommandChannel, apiClient;
 
 client.once(Events.ClientReady, () => {
-    modCommandChannel = client.channels.cache.get(config.commandChannel);
+    modCommandChannel = client.channels.cache.get(config.modCommandChannel);
+    console.log('bot started ' + modCommandChannel.id);
 
     //TODO: register app with twitch, get client id/secret
-    const authProvider = new ClientCredentialsAuthProvider(config.clientId, config.clientSecret);
+    const authProvider = new StaticAuthProvider(config.clientId, config.accessToken);
     apiClient = new ApiClient({ authProvider });
-    const listener = new EventSubHttpListener({
-        apiClient,
-        adapter: new EventSubNgrokAdapter(),
-        secret: config.secret
-    });
+    const listener = new EventSubWsListener({ apiClient });
 
     listener.onStreamOnline(config.twitchUserId, (e) => { streamStartHandler(e); });
     listener.onStreamOffline(config.twitchUserId, (e) => { streamEndHandler(e); });
@@ -114,7 +111,7 @@ async function handleNewMessage(message) {
     if (response) {
         const channel = client.channels.cache.get(message.channel.id);
         if (Array.isArray(response)) {
-            for (res of response) {
+            for (const res of response) {
                 await channel.send(res);
             }
         } else {
@@ -126,7 +123,7 @@ async function handleNewMessage(message) {
 function handleMessageDeletion(message) {
     if (message.channel.id !== config.liveChatChannel) return;
     
-    if (reaction.message.content.startsWith('`')) {
+    if (message.content.startsWith('`')) {
         tagger.deleteTag(message.id);
     }
 }
