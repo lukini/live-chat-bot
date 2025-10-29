@@ -40,11 +40,11 @@ client.on(Events.MessageReactionAdd, (reaction, user) => { handleReactionAdd(rea
 client.on(Events.MessageReactionRemove, (reaction, user) => { handleReactionRemove(reaction, user); });
 
 async function streamStartHandler(e) {
+    tagger.deleteTags();
     tagger.streamStart = e.startDate;
 
-    const stream = await apiClient.streams.getStreamByUserName(userName);
     setTimeout(() => {
-        checkForVod(e.broadcasterId, stream.title, 0);
+        checkForVod(0);
     }, 5 * 60 * 1000); // wait 5 minutes
 
     if (config.states.unlockChannel) {
@@ -55,10 +55,12 @@ async function streamStartHandler(e) {
 
 async function streamEndHandler(e) {
     tagger.streamEnd = new Date();
-    const tags = tagger.listTags(null);
-    const outputChannel = client.channels.cache.get(config.outputChannel);
-    outputChannel.send(tags);
-    tagger.deleteTags();
+    if (tagger.getStreamUrl()) {
+        const tags = tagger.listTags();
+        const outputChannel = client.channels.cache.get(config.outputChannel);
+        outputChannel.send(tags);
+        tagger.deleteTags();
+    }
 
     if (config.states.lockChannel) {
         const message = `d?livelock ${config.states.lockMessage}`;
@@ -66,21 +68,22 @@ async function streamEndHandler(e) {
     }
 }
 
-async function checkForVod(userId, streamTitle) {
-    const videos = await apiClient.videos.getVideosByUser(userId, {
+//TODO: factor this out for use in the tagger for non-henya streams?
+async function checkForVod(retryCount) {
+    const videos = await apiClient.videos.getVideosByUser(config.twitchUserId, {
         type: 'archive',
         limit: 1
     });
     if (videos.data.length !== 0) {
         const latestVideo = videos.data[0];
-        if (latestVideo.title === streamTitle) {
+        if (latestVideo.status === 'recording') {
             tagger.autoStreamUrl = latestVideo.url;
             return;
         }
     }
     if (retryCount < 5) {
         setTimeout(() => {
-            checkForVod(userId, streamTitle, retryCount + 1);
+            checkForVod(retryCount + 1);
         }, 5 * 60 * 1000); // wait 5 minutes
     }
 }
@@ -101,7 +104,7 @@ async function handleNewMessage(message) {
     } // regular commands
     else if (command.startsWith('!')) {
         command = command.substring(1);
-        response = commandHandler.process(command, message.author.id, args);
+        response = commandHandler.process(message, command, args);
     } // handle tags
     else if (content.startsWith('`') && content.length > 1) {
         message.content = content.substring(1).trim();
