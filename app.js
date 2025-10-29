@@ -17,14 +17,14 @@ const client = new Client({
 });
 let modCommandChannel, apiClient;
 
-client.once(Events.ClientReady, () => {
+client.once(Events.ClientReady, async () => {
     modCommandChannel = client.channels.cache.get(config.modCommandChannel);
 
-    //TODO: register app with twitch, get client id/secret
+    //TODO: register app with twitch, get client id/access token
     const authProvider = new StaticAuthProvider(config.clientId, config.accessToken);
     apiClient = new ApiClient({ authProvider });
-    const listener = new EventSubWsListener({ apiClient });
 
+    const listener = new EventSubWsListener({ apiClient });
     listener.onStreamOnline(config.twitchUserId, (e) => { streamStartHandler(e); });
     listener.onStreamOffline(config.twitchUserId, (e) => { streamEndHandler(e); });
 });
@@ -66,17 +66,22 @@ async function streamEndHandler(e) {
 
 //TODO: factor this out for use in the tagger for non-henya streams?
 async function checkForVod(retryCount) {
-    const videos = await apiClient.videos.getVideosByUser(config.twitchUserId, {
-        type: 'archive',
-        limit: 1
-    });
-    if (videos.data.length !== 0) {
-        const latestVideo = videos.data[0];
-        if (latestVideo.status === 'recording') {
-            tagger.autoStreamUrl = latestVideo.url;
-            return;
+    try {
+        const videos = await apiClient.videos.getVideosByUser(config.twitchUserId, {
+            type: 'archive',
+            limit: 1
+        });
+        if (videos.data.length !== 0) {
+            const latestVideo = videos.data[0];
+            if (latestVideo.status === 'recording') {
+                tagger.autoStreamUrl = latestVideo.url;
+                return;
+            }
         }
+    } catch (e) {
+        console.error('Error checking for VOD: ', e);
     }
+    
     if (retryCount < 5) {
         setTimeout(() => {
             checkForVod(retryCount + 1);

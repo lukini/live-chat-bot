@@ -39,7 +39,6 @@ const commandHandler = {
         }
     },
 
-    //TODO: check emoji support
     setUnlockChannel: function(open, message) {
         config.states.unlockChannel = open;
         if (!!message) {
@@ -59,7 +58,7 @@ const commandHandler = {
             config.states.lockMessage = this.defaultLockMessage;
         }
         config.saveState();
-        return `${close ? 'Enabled' : 'Disabled'} automatic chat lock`
+        return `${close ? 'Enabled' : 'Disabled'} automatic chat lock`;
     },
 
     sendStatus: function() {

@@ -14,7 +14,7 @@ const tagger = {
         return this.autoStreamUrl;
     },
 
-    createTag: function(message, content) {
+    createTag: async function(message, content) {
         const tag = {
             authorId: message.author.id,
             messageId: message.id,
@@ -22,14 +22,14 @@ const tagger = {
             time: message.createdAt,
             stars: 0
         };
-        message.react('⭐').then(() => message.react('❌'))
-            .catch(err => err && console.error(err));
+        await message.react('⭐');
+        await message.react('❌');
         this.tags.push(tag);
     },
 
     adjustTime: function(message, offset) {
         const tag = this.tags.findLast(t => t.authorId === message.author.id);
-        if (tag) {
+        if (tag && offset) {
             offset = parseInt(offset.trim());
             if (isNaN(offset)) {
                 message.react('❌');
