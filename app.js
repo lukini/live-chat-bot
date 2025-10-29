@@ -91,7 +91,7 @@ async function checkForVod(retryCount) {
 
 
 async function handleNewMessage(message) {
-    if (message.channel.id !== config.liveChatChannel) return;
+    if (message.channel.id !== config.liveChatChannel && message.channel.id !== config.modCommandChannel) return;
     if (message.author.bot) return;
 
     const content = message.content;
@@ -183,10 +183,10 @@ function parseCommand(content) {
     const index = content.indexOf(' ');
     let command, args;
     if (index > 0) {
-        command = content.substring(0, index).toLowerCase();
+        command = content.substring(0, index);
         args = content.substring(index + 1).trim();
     } else {
-        command = content.toLowerCase();
+        command = content;
     }
     return { command, args };
 }
