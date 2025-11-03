@@ -1,4 +1,4 @@
-import { Client, Events, GatewayIntentBits } from 'discord.js';
+import { Client, Events, GatewayIntentBits, EmbedBuilder } from 'discord.js';
 import { EventSubWsListener } from '@twurple/eventsub-ws';
 import { ApiClient } from '@twurple/api';
 import { StaticAuthProvider } from '@twurple/auth';
@@ -44,8 +44,7 @@ async function streamStartHandler(e) {
     }, 5 * 60 * 1000); // wait 5 minutes
 
     if (config.states.unlockChannel) {
-        const message = `d?liveunlock ${config.states.unlockMessage}`;
-        modCommandChannel.send(message);
+        modCommandChannel.send(`d?liveunlock ${config.states.unlockMessage}`);
     }
 }
 
@@ -54,13 +53,14 @@ async function streamEndHandler(e) {
     if (tagger.getStreamUrl()) {
         const tags = tagger.listTags();
         const outputChannel = client.channels.cache.get(config.outputChannel);
-        outputChannel.send(tags);
+        for (const embed of tags) {
+            await outputChannel.send({ embeds: [embed] });
+        }
         tagger.deleteTags();
     }
 
     if (config.states.lockChannel) {
-        const message = `d?livelock ${config.states.lockMessage}`;
-        modCommandChannel.send(message);
+        modCommandChannel.send(`d?livelock ${config.states.lockMessage}`);
     }
 }
 
@@ -115,7 +115,11 @@ async function handleNewMessage(message) {
         const channel = client.channels.cache.get(message.channel.id);
         if (Array.isArray(response)) {
             for (const res of response) {
-                await channel.send(res);
+                if (res instanceof EmbedBuilder) {
+                    await channel.send({ embeds: [res] });
+                } else {
+                    await channel.send(res);
+                }
             }
         } else {
             channel.send(response);
@@ -137,7 +141,7 @@ function handleMessageUpdate(oldMessage, newMessage) {
     if (oldMessage.content === newMessage.content) return;
 
     // handle tags
-    if (oldMessage.content.startsWith('`')) {
+    if (oldMessage.content.startsWith('`') && oldMessage.content.length > 1) {
         if (newMessage.content.startsWith('`') && newMessage.content.length > 1) {
             tagger.editTag(oldMessage.id, newMessage.content.substring(1).trim());
         } else {

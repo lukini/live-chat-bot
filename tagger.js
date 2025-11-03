@@ -1,3 +1,5 @@
+import { EmbedBuilder } from 'discord.js';
+
 const tagger = {
     tags: [],
     streamStart: null,
@@ -60,7 +62,7 @@ const tagger = {
     },
 
     getTagByMessageId: function(messageId) {
-        return this.tags.find(t => t.messageId === messageId) || {};
+        return this.tags.findLast(t => t.messageId === messageId) || {};
     },
 
     deleteTags: function() {
@@ -78,29 +80,43 @@ const tagger = {
             this.tags;
         tagList = tagList.sort((a, b) => a.time - b.time);
         
-        const lines = [], messages = [];
-        lines.push('>>> ### Tags:\n');
         const minutes = this.calculateMinutes();
-        //TODO: add discord format for start time
-        lines.push(`Stream start ${tagList.length} tags (${(minutes / tagList.length).toPrecision(2)}/min)\n`);
-        tagList.forEach(tag => {
-            let message = `${tag.message}`;
-            if (tag.stars > 0) {
-                message += ` (${tag.stars})`;
-            }
-            const offset = this.calculateOffset(tag.time);
-            if (this.streamUrl) {
-                message += ` [${offset}](${this.streamUrl}?t=${offset})\n`;
-            } else {
-                message += ` ${offset}\n`;
-            }
-            lines.push(message);
-        });
+        let tagInfo = `Stream start: <t:${parseInt(this.streamStart / 1000, 10)}:F>, `;
+        tagInfo += `${tagList.length} tags (${(minutes / tagList.length).toPrecision(2)}/min)\n`;
+
+        const title = 'Tags';
+        let firstEmbed = true;
+        const embeds = [];
         
-        for (let i = 0; i < lines.length; i += 22) {
-            messages.push(lines.slice(i, i + 22).join(''));
+        for (let i = 0; i < tagList.length; i += 22) {
+            const embed = new EmbedBuilder();
+            let description = tagList.slice(i, i + 22).map(tag => this.printTag(tag)).join('');
+
+            if (firstEmbed) {
+                description = tagInfo + description;
+                embed.setTitle(title);
+                firstEmbed = false;
+            }
+            
+            embed.setDescription(description)
+            embeds.push(embed);
         }
-        return messages;
+
+        return embeds;
+    },
+
+    printTag: function(tag) {
+        let text = `${tag.message}`;
+        if (tag.stars > 0) {
+            text += ` (${tag.stars})`;
+        }
+        const offset = this.calculateOffset(tag.time);
+        if (this.streamUrl) {
+            text += ` [${offset}](${this.streamUrl}?t=${offset})\n`;
+        } else {
+            text += ` ${offset}\n`;
+        }
+        return text;
     },
 
     calculateMinutes: function() {
