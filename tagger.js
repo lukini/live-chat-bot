@@ -1,19 +1,52 @@
 import { EmbedBuilder } from 'discord.js';
 
 const tagger = {
+    tagsPerEmbed: 22,
+    apiClient: null,
+
     tags: [],
     streamStart: null,
     streamEnd: null,
+    streamId: null,
     streamUrl: null,
-    // testing value
-    autoStreamUrl: null,
 
-    setStream: function(url) {
+    setStreamUrl: async function(url) {
         this.streamUrl = url;
+        const streamId = url.split('/').pop().trim();
+
+        try {
+            const video = await this.apiClient.videos.getVideoById(streamId);
+            this.streamId = streamId;
+            this.streamStart = video.creationDate;
+        } catch (e) {
+            console.error('Error getting video: ', e);
+        }
     },
 
-    getAutoStreamUrl: function() {
-        return this.autoStreamUrl;
+    checkForVod: async function(retryCount) {
+        try {
+            const videos = await this.apiClient.videos.getVideosByUser(config.twitchUserId, {
+                type: 'archive',
+                limit: 1
+            });
+            if (videos.data.length !== 0) {
+                const latestVideo = videos.data[0];
+                console.log('Latest video ID: ', latestVideo.url);
+                if (latestVideo.streamId === this.streamId) {
+                    console.log('Matches current stream');
+                    this.streamUrl = latestVideo.url;
+                    return;
+                }
+            }
+        } catch (e) {
+            console.error('Error checking for VOD: ', e);
+        }
+        
+        if (retryCount < 5) {
+            setTimeout(() => {
+                this.checkForVod(retryCount + 1);
+            }, 5 * 60 * 1000); // wait 5 minutes
+        }
     },
 
     createTag: async function(message, content) {
@@ -69,9 +102,8 @@ const tagger = {
         this.tags = [];
         this.streamStart = null;
         this.streamEnd = null;
+        this.streamId = null;
         this.streamUrl = null;
-        // testing value
-        this.autoStreamUrl = null;
     },
 
     listTags: function(userId) {
@@ -81,20 +113,19 @@ const tagger = {
         tagList = tagList.sort((a, b) => a.time - b.time);
         
         const minutes = this.calculateMinutes();
-        let tagInfo = `Stream start: <t:${parseInt(this.streamStart / 1000, 10)}:F>, `;
-        tagInfo += `${tagList.length} tags (${(minutes / tagList.length).toPrecision(2)}/min)\n`;
+        let tagInfo = `Stream start: <t:${parseInt(this.streamStart / 1000, 10)}:f>, `;
+        tagInfo += `${tagList.length} tags (${(tagList.length / minutes).toPrecision(2)}/min)\n`;
 
-        const title = 'Tags';
         let firstEmbed = true;
         const embeds = [];
         
-        for (let i = 0; i < tagList.length; i += 22) {
+        for (let i = 0; i < tagList.length; i += this.tagsPerEmbed) {
             const embed = new EmbedBuilder();
-            let description = tagList.slice(i, i + 22).map(tag => this.printTag(tag)).join('');
+            let description = tagList.slice(i, i + this.tagsPerEmbed).map(tag => this.printTag(tag)).join('');
 
             if (firstEmbed) {
                 description = tagInfo + description;
-                embed.setTitle(title);
+                embed.setTitle('Tags');
                 firstEmbed = false;
             }
             
@@ -106,7 +137,7 @@ const tagger = {
     },
 
     printTag: function(tag) {
-        let text = `${tag.message}`;
+        let text = tag.message;
         if (tag.stars > 0) {
             text += ` (${tag.stars})`;
         }

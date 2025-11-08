@@ -1,7 +1,8 @@
 import { Client, Events, GatewayIntentBits, EmbedBuilder } from 'discord.js';
-import { EventSubWsListener } from '@twurple/eventsub-ws';
+import { NgrokAdapter } from '@twurple/eventsub-ngrok';
+import { EventSubHttpListener } from '@twurple/eventsub-http';
 import { ApiClient } from '@twurple/api';
-import { StaticAuthProvider } from '@twurple/auth';
+import { AppTokenAuthProvider  } from '@twurple/auth';
 
 import config from './config.js';
 import commandHandler from './commandHandler.js';
@@ -15,18 +16,26 @@ const client = new Client({
         GatewayIntentBits.MessageContent
     ] 
 });
-let modCommandChannel, apiClient;
+let modCommandChannel;
 
 client.once(Events.ClientReady, async () => {
     modCommandChannel = client.channels.cache.get(config.modCommandChannel);
 
-    //TODO: register app with twitch, get client id/access token
-    const authProvider = new StaticAuthProvider(config.clientId, config.accessToken);
-    apiClient = new ApiClient({ authProvider });
+    const authProvider = new AppTokenAuthProvider(config.twitchClientId, config.twitchClientSecret);
+    tagger.apiClient = new ApiClient({ authProvider });
 
-    const listener = new EventSubWsListener({ apiClient });
+    const listener = new EventSubHttpListener({
+        apiClient: tagger.apiClient,
+        adapter: new NgrokAdapter({
+            ngrokConfig: {
+                authtoken: config.ngrokAuthToken
+            }
+        }),
+        secret: config.secret
+    });
     listener.onStreamOnline(config.twitchUserId, (e) => { streamStartHandler(e); });
     listener.onStreamOffline(config.twitchUserId, (e) => { streamEndHandler(e); });
+    listener.start();
 });
 
 client.on(Events.MessageCreate, (message) => { handleNewMessage(message); });
@@ -36,20 +45,24 @@ client.on(Events.MessageReactionAdd, (reaction, user) => { handleReactionAdd(rea
 client.on(Events.MessageReactionRemove, (reaction, user) => { handleReactionRemove(reaction, user); });
 
 async function streamStartHandler(e) {
+    console.log('Stream started at ', e.startDate);
     tagger.deleteTags();
     tagger.streamStart = e.startDate;
+    tagger.streamId = e.id;
 
     setTimeout(() => {
-        checkForVod(0);
-    }, 5 * 60 * 1000); // wait 5 minutes
+        tagger.checkForVod(0);
+    }, 2 * 60 * 1000); // wait 2 minutes
 
     if (config.states.unlockChannel) {
         modCommandChannel.send(`d?liveunlock ${config.states.unlockMessage}`);
     }
 }
 
-async function streamEndHandler(e) {
+async function streamEndHandler() {
+    console.log('Stream ended at ', new Date());
     tagger.streamEnd = new Date();
+    
     if (tagger.getStreamUrl()) {
         const tags = tagger.listTags();
         const outputChannel = client.channels.cache.get(config.outputChannel);
@@ -63,32 +76,6 @@ async function streamEndHandler(e) {
         modCommandChannel.send(`d?livelock ${config.states.lockMessage}`);
     }
 }
-
-//TODO: factor this out for use in the tagger for non-henya streams?
-async function checkForVod(retryCount) {
-    try {
-        const videos = await apiClient.videos.getVideosByUser(config.twitchUserId, {
-            type: 'archive',
-            limit: 1
-        });
-        if (videos.data.length !== 0) {
-            const latestVideo = videos.data[0];
-            if (latestVideo.status === 'recording') {
-                tagger.autoStreamUrl = latestVideo.url;
-                return;
-            }
-        }
-    } catch (e) {
-        console.error('Error checking for VOD: ', e);
-    }
-    
-    if (retryCount < 5) {
-        setTimeout(() => {
-            checkForVod(retryCount + 1);
-        }, 5 * 60 * 1000); // wait 5 minutes
-    }
-}
-
 
 async function handleNewMessage(message) {
     if (message.channel.id !== config.liveChatChannel && message.channel.id !== config.modCommandChannel) return;
@@ -111,6 +98,7 @@ async function handleNewMessage(message) {
         tagger.createTag(message, content.substring(1).trim());
     }
     
+    console.log('Command response: ', response);
     if (response) {
         const channel = client.channels.cache.get(message.channel.id);
         if (Array.isArray(response)) {

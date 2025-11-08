@@ -17,4 +17,3 @@ Mod only commands (using default prefix):
 - l?status - show current status of auto open/close
 - l?tags - list all tags for the stream
 - l?setstream - sets the stream url (use only if the stream didn't get set)
-- l?checkurl - check current stream url grabbed by the bot

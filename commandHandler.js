@@ -10,7 +10,7 @@ const commandHandler = {
             case 'tags':
                 return tagger.listTags(message.author.id);
             case 'adjust':
-                return tagger.adjustTime(message, args);
+                tagger.adjustTime(message, args);
             default:
                 break;
         }
@@ -31,9 +31,7 @@ const commandHandler = {
             case 'tags':
                 return tagger.listTags();
             case 'setstream':
-                return tagger.setStream(args);
-            case 'checkurl':
-                return tagger.getAutoStreamUrl();
+                tagger.setStreamUrl(args);
             default:
                 break;
         }
