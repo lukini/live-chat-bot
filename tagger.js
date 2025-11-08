@@ -18,8 +18,10 @@ const tagger = {
             const video = await this.apiClient.videos.getVideoById(streamId);
             this.streamId = streamId;
             this.streamStart = video.creationDate;
+            return `Stream set to ${streamId}`;
         } catch (e) {
             console.error('Error getting video: ', e);
+            return 'Error setting stream URL';
         }
     },
 
@@ -88,7 +90,7 @@ const tagger = {
     },
 
     deleteTag: function(messageId, userId) {
-        const index = this.tags.findIndex(t => t.messageId === messageId);
+        const index = this.tags.findLastIndex(t => t.messageId === messageId);
         if (index >= 0 && (!userId || this.tags[index].authorId === userId)) {
             this.tags.splice(index, 1);
         }
