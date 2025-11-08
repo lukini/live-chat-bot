@@ -31,7 +31,7 @@ const commandHandler = {
             case 'tags':
                 return tagger.listTags();
             case 'setstream':
-                tagger.setStreamUrl(args);
+                return tagger.setStreamUrl(args);
             default:
                 break;
         }

@@ -109,7 +109,11 @@ async function handleNewMessage(message) {
                     await channel.send(res);
                 }
             }
-        } else {
+        } else if (response instanceof Promise) {
+            response.then(res => {
+                channel.send(res);
+            });
+        }else {
             channel.send(response);
         }
     }
