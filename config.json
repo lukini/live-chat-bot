@@ -1,7 +1,8 @@
 {
     "token": "",
-    "clientId": "",
-    "clientSecret": "",
+    "twitchClientId": "",
+    "twitchClientSecret": "",
+    "ngrokAuthToken": "",
     "secret": "whateverthisreallydoesnotmatter",
     "modCommandChannel": "1222022298861572125",
     "liveChatChannel": "1233149363325239397",
