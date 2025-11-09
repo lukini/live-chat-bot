@@ -3,7 +3,6 @@ import { NgrokAdapter } from '@twurple/eventsub-ngrok';
 import { EventSubHttpListener } from '@twurple/eventsub-http';
 import { ApiClient } from '@twurple/api';
 import { AppTokenAuthProvider  } from '@twurple/auth';
-
 import config from './config.js';
 import commandHandler from './commandHandler.js';
 import tagger from './tagger.js';
@@ -51,7 +50,7 @@ async function streamStartHandler(e) {
     tagger.streamId = e.id;
 
     setTimeout(() => {
-        tagger.checkForVod(0);
+        tagger.checkForVod(config.twitchUserId, 0);
     }, 2 * 60 * 1000); // wait 2 minutes
 
     if (config.states.unlockChannel) {
@@ -63,7 +62,7 @@ async function streamEndHandler() {
     console.log('Stream ended at ', new Date());
     tagger.streamEnd = new Date();
     
-    if (tagger.getStreamUrl()) {
+    if (tagger.streamUrl) {
         const tags = tagger.listTags();
         const outputChannel = client.channels.cache.get(config.outputChannel);
         for (const embed of tags) {
@@ -98,8 +97,8 @@ async function handleNewMessage(message) {
         tagger.createTag(message, content.substring(1).trim());
     }
     
-    console.log('Command response: ', response);
     if (response) {
+        console.log('Command response: ', response);
         const channel = client.channels.cache.get(message.channel.id);
         if (Array.isArray(response)) {
             for (const res of response) {
@@ -113,7 +112,7 @@ async function handleNewMessage(message) {
             response.then(res => {
                 channel.send(res);
             });
-        }else {
+        } else {
             channel.send(response);
         }
     }

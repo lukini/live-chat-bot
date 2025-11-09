@@ -11,23 +11,25 @@ const tagger = {
     streamUrl: null,
 
     setStreamUrl: async function(url) {
-        this.streamUrl = url;
         const streamId = url.split('/').pop().trim();
 
         try {
             const video = await this.apiClient.videos.getVideoById(streamId);
-            this.streamId = streamId;
-            this.streamStart = video.creationDate;
-            return `Stream set to ${streamId}`;
+            if (video?.creationDate) {
+                this.streamUrl = url;
+                this.streamId = streamId;
+                this.streamStart = video.creationDate;
+                return `Stream set to ${streamId}`;
+            }
         } catch (e) {
             console.error('Error getting video: ', e);
-            return 'Error setting stream URL';
         }
+        return 'Error setting stream URL';
     },
 
-    checkForVod: async function(retryCount) {
+    checkForVod: async function(twitchUserId, retryCount) {
         try {
-            const videos = await this.apiClient.videos.getVideosByUser(config.twitchUserId, {
+            const videos = await this.apiClient.videos.getVideosByUser(twitchUserId, {
                 type: 'archive',
                 limit: 1
             });
@@ -37,6 +39,7 @@ const tagger = {
                 if (latestVideo.streamId === this.streamId) {
                     console.log('Matches current stream');
                     this.streamUrl = latestVideo.url;
+                    this.streamStart = latestVideo.creationDate;
                     return;
                 }
             }
@@ -46,7 +49,7 @@ const tagger = {
         
         if (retryCount < 5) {
             setTimeout(() => {
-                this.checkForVod(retryCount + 1);
+                this.checkForVod(twitchUserId, retryCount + 1);
             }, 5 * 60 * 1000); // wait 5 minutes
         }
     },
