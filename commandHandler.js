@@ -11,6 +11,7 @@ const commandHandler = {
                 return tagger.listTags(message.author.id);
             case 'adjust':
                 tagger.adjustTime(message, args);
+                break;
             default:
                 break;
         }
@@ -39,7 +40,7 @@ const commandHandler = {
 
     setUnlockChannel: function(open, message) {
         config.states.unlockChannel = open;
-        if (!!message) {
+        if (message) {
             config.states.unlockMessage = message;
         } else if (open && !config.states.unlockMessage) {
             config.states.unlockMessage = this.defaultUnlockMessage;
@@ -50,7 +51,7 @@ const commandHandler = {
 
     setLockChannel: function(close, message) {
         config.states.lockChannel = close;
-        if (!!message) {
+        if (message) {
             config.states.lockMessage = message;
         } else if (close && !config.states.lockMessage) {
             config.states.lockMessage = this.defaultLockMessage;
