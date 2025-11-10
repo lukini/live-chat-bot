@@ -77,7 +77,9 @@ async function streamEndHandler() {
 }
 
 async function handleNewMessage(message) {
-    if (message.channel.id !== config.liveChatChannel && message.channel.id !== config.modCommandChannel) return;
+    if (message.channel.id !== config.liveChatChannel &&
+        message.channel.id !== config.modCommandChannel &&
+        message.channel.id !== config.outputChannel) return;
     if (message.author.bot) return;
 
     const content = message.content;
@@ -93,7 +95,7 @@ async function handleNewMessage(message) {
         command = command.substring(1);
         response = commandHandler.process(message, command, args);
     } // handle tags
-    else if (content.startsWith('`') && content.length > 1) {
+    else if (content.startsWith('`') && content.length > 1 && content[content.length-1] !== '`') {
         tagger.createTag(message, content.substring(1).trim());
     }
     
