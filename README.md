@@ -5,7 +5,7 @@
 - Prints out tags after stream
 
 # Prerequisites
-[Node.js](https://nodejs.org/en/download) and [ngrok](https://ngrok.com/download) are currently required to run locally
+[Node.js](https://nodejs.org/en/download) and [ngrok](https://ngrok.com/download) are currently required to run locally. Get your ngrok auth token [here](https://dashboard.ngrok.com/get-started/your-authtoken) and your register the app with twitch [following these steps](https://dev.twitch.tv/docs/authentication/register-app) to get your client id/secret.
 
 # Install
 git clone the repository and run this from the folder
