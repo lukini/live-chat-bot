@@ -1,6 +1,6 @@
 {
     "unlockChannel": false,
     "lockChannel": false,
-    "unlockMessage": null,
-    "lockMessage": null
+    "unlockMessage": "",
+    "lockMessage": ""
 }
