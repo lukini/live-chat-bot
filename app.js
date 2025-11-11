@@ -15,10 +15,10 @@ const client = new Client({
         GatewayIntentBits.MessageContent
     ] 
 });
-let modCommandChannel;
+let liveChatChannel;
 
 client.once(Events.ClientReady, async () => {
-    modCommandChannel = client.channels.cache.get(config.modCommandChannel);
+    liveChatChannel = client.channels.cache.get(config.liveChatChannel);
 
     const authProvider = new AppTokenAuthProvider(config.twitchClientId, config.twitchClientSecret);
     tagger.apiClient = new ApiClient({ authProvider });
@@ -54,13 +54,27 @@ async function streamStartHandler(e) {
     }, 2 * 60 * 1000); // wait 2 minutes
 
     if (config.states.unlockChannel) {
-        modCommandChannel.send(`d?liveunlock ${config.states.unlockMessage}`);
+        liveChatChannel.send({ embeds: [{
+            color: 0x00ff99,
+            title: 'Channel Unlocked',
+            description: `:unlock: ${config.states.unlockMessage}`
+        }] });
+        liveChatChannel.permissionOverwrites.edit(config.guildId, { SendMessages: true });
     }
 }
 
 async function streamEndHandler() {
     console.log('Stream ended at ', new Date());
     tagger.streamEnd = new Date();
+
+    if (config.states.lockChannel) {
+        liveChatChannel.permissionOverwrites.edit(config.guildId, { SendMessages: null });
+        liveChatChannel.send({ embeds: [{
+            color: 0xff4444,
+            title: 'Channel Locked',
+            description: `:lock: ${config.states.lockMessage}`
+        }] });
+    }
     
     if (tagger.streamUrl) {
         const tags = tagger.listTags();
@@ -69,10 +83,6 @@ async function streamEndHandler() {
             await outputChannel.send({ embeds: [embed] });
         }
         tagger.deleteTags();
-    }
-
-    if (config.states.lockChannel) {
-        modCommandChannel.send(`d?livelock ${config.states.lockMessage}`);
     }
 }
 
