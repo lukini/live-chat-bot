@@ -59,7 +59,7 @@ async function streamStartHandler(e) {
             title: 'Channel Unlocked',
             description: `:unlock: ${config.states.unlockMessage}`
         }] });
-        liveChatChannel.permissionOverwrites.edit(config.guildId, { SendMessages: true });
+        liveChatChannel.permissionOverwrites.edit(config.guildId, { SendMessages: null });
     }
 }
 
@@ -68,7 +68,7 @@ async function streamEndHandler() {
     tagger.streamEnd = new Date();
 
     if (config.states.lockChannel) {
-        liveChatChannel.permissionOverwrites.edit(config.guildId, { SendMessages: null });
+        liveChatChannel.permissionOverwrites.edit(config.guildId, { SendMessages: false });
         liveChatChannel.send({ embeds: [{
             color: 0xff4444,
             title: 'Channel Locked',
