@@ -40,6 +40,7 @@ const tagger = {
                     console.log('Matches current stream');
                     this.streamUrl = latestVideo.url;
                     this.streamStart = latestVideo.creationDate;
+                    console.log('VOD creation date: ', this.streamStart);
                     return;
                 }
             }
@@ -59,7 +60,7 @@ const tagger = {
             authorId: message.author.id,
             messageId: message.id,
             message: content,
-            time: message.createdAt,
+            time: new Date(message.createdAt.getTime() - (15 * 1000)),
             stars: 0
         };
         await message.react('⭐');
