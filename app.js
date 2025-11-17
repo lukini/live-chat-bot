@@ -1,11 +1,11 @@
-import { Client, Events, GatewayIntentBits, EmbedBuilder } from 'discord.js';
+import { Client, Events, GatewayIntentBits, PermissionsBitField } from 'discord.js';
 import { NgrokAdapter } from '@twurple/eventsub-ngrok';
 import { EventSubHttpListener } from '@twurple/eventsub-http';
 import { ApiClient } from '@twurple/api';
-import { AppTokenAuthProvider  } from '@twurple/auth';
-import config from './config.js';
-import commandHandler from './commandHandler.js';
-import tagger from './tagger.js';
+import { AppTokenAuthProvider } from '@twurple/auth';
+import appConfig from './appConfig.json' with { type: 'json' };
+import configManager from './configManager.js';
+import Server from './server.js';
 
 const client = new Client({
     intents: [
@@ -15,174 +15,192 @@ const client = new Client({
         GatewayIntentBits.MessageContent
     ] 
 });
-let liveChatChannel;
+const servers = [];
+let apiClient, listener;
 
 client.once(Events.ClientReady, async () => {
-    liveChatChannel = client.channels.cache.get(config.liveChatChannel);
-
-    const authProvider = new AppTokenAuthProvider(config.twitchClientId, config.twitchClientSecret);
-    tagger.apiClient = new ApiClient({ authProvider });
-
-    const listener = new EventSubHttpListener({
-        apiClient: tagger.apiClient,
+    const authProvider = new AppTokenAuthProvider(appConfig.twitchClientId, appConfig.twitchClientSecret);
+    apiClient = new ApiClient({ authProvider });
+    listener = new EventSubHttpListener({
+        apiClient,
         adapter: new NgrokAdapter({
             ngrokConfig: {
-                authtoken: config.ngrokAuthToken
+                authtoken: appConfig.ngrokAuthToken
             }
         }),
-        secret: config.secret
+        secret: appConfig.secret
     });
-    listener.onStreamOnline(config.twitchUserId, (e) => { streamStartHandler(e); });
-    listener.onStreamOffline(config.twitchUserId, (e) => { streamEndHandler(e); });
+
+    const configs = configManager.getAll();
+    for (const config of configs) {
+        const server = new Server(config, apiClient, client, listener);
+        //TODO: see if this causes issues with multiple servers
+        server.addSubscriptions();
+        servers.push(server);
+        console.log('Server loaded with id', config.guildId);
+    }
+
     listener.start();
 });
 
+//TODO: proxy.apply all these functions instead of multiple try-catches
+client.on(Events.GuildCreate, (guild) => { handleServerAddition(guild); });
+client.on(Events.GuildDelete, (guild) => { handleServerRemoval(guild); });
 client.on(Events.MessageCreate, (message) => { handleNewMessage(message); });
 client.on(Events.MessageUpdate, (oldMessage, newMessage) => { handleMessageUpdate(oldMessage, newMessage); });
 client.on(Events.MessageDelete, (message) => { handleMessageDeletion(message); });
 client.on(Events.MessageReactionAdd, (reaction, user) => { handleReactionAdd(reaction, user); });
 client.on(Events.MessageReactionRemove, (reaction, user) => { handleReactionRemove(reaction, user); });
 
-async function streamStartHandler(e) {
-    console.log('Stream started at ', e.startDate);
-    tagger.deleteTags();
-    tagger.streamStart = e.startDate;
-    tagger.streamId = e.id;
+function handleServerAddition(guild) {
+    const config = configManager.create(guild.id);
+    const server = new Server(config, apiClient, client);
+    servers.push(server);
+}
 
-    setTimeout(() => {
-        tagger.checkForVod(config.twitchUserId, 0);
-    }, 2 * 60 * 1000); // wait 2 minutes
-
-    if (config.states.unlockChannel) {
-        liveChatChannel.send({ embeds: [{
-            color: 0x00ff99,
-            title: 'Channel Unlocked',
-            description: `:unlock: ${config.states.unlockMessage}`
-        }] });
-        liveChatChannel.permissionOverwrites.edit(config.guildId, { SendMessages: null });
+function handleServerRemoval(guild) {
+    const index = servers.findIndex(s => s.guildId === guild.id);
+    if (index >= 0) {
+        servers[index].removeSubscriptions();
+        servers.splice(index, 1);
+        configManager.delete(guild.id);
     }
 }
 
-async function streamEndHandler() {
-    console.log('Stream ended at ', new Date());
-    tagger.streamEnd = new Date();
-
-    if (config.states.lockChannel) {
-        liveChatChannel.permissionOverwrites.edit(config.guildId, { SendMessages: false });
-        liveChatChannel.send({ embeds: [{
-            color: 0xff4444,
-            title: 'Channel Locked',
-            description: `:lock: ${config.states.lockMessage}`
-        }] });
-    }
-    
-    if (tagger.streamUrl) {
-        const tags = tagger.listTags();
-        const outputChannel = client.channels.cache.get(config.outputChannel);
-        for (const embed of tags) {
-            await outputChannel.send({ embeds: [embed] });
-        }
-        tagger.deleteTags();
-    }
+function getServer(message) {
+    return servers.find(s => s.guildId === message.guildId);
 }
 
 async function handleNewMessage(message) {
-    if (message.channel.id !== config.liveChatChannel &&
-        message.channel.id !== config.modCommandChannel &&
-        message.channel.id !== config.outputChannel) return;
+    const server = getServer(message);
     if (message.author.bot) return;
 
-    const content = message.content;
-    let { command, args } = parseCommand(content);
     let response;
 
-    // mod commands
-    if (command.startsWith(config.commandPrefix + '?') && message.member.roles.cache.some(role => config.modRoles.includes(role.id))) {
-        command = command.substring(2);
-        response = commandHandler.processElevated(command, args);
-    } // regular commands
-    else if (command.startsWith('!')) {
-        command = command.substring(1);
-        response = commandHandler.process(message, command, args);
-    } // handle tags
-    else if (content.startsWith('`') && content.length > 1 && content[content.length-1] !== '`') {
-        tagger.createTag(message, content.substring(1).trim());
+    try {
+        const content = message.content;
+        let { command, args } = parseCommand(content);
+
+        // mod commands
+        if (command.startsWith('l?') && message.member.permissions.has(PermissionsBitField.Flags.ManageMessages)) {
+            command = command.substring(2);
+            response = server.processCommandElevated(command, args);
+        } else if (message.channel.id === server.config.liveChatChannel) {
+            // regular commands
+            if (command.startsWith('!')) {
+                command = command.substring(1);
+                response = server.processCommand(message, command, args);
+            } // handle tags
+            else if (content.startsWith('`') && content.length > 1 && content[content.length-1] !== '`') {
+                server.tagger.createTag(message, content.substring(1).trim());
+            }
+        }
+    } catch (e) {
+        console.error('Failed to run command:', e);
     }
     
+    if (response instanceof Promise) {
+        await response.then(res => {
+            response = res;
+        });
+    }
+
     if (response) {
         console.log('Command response: ', response);
-        const channel = client.channels.cache.get(message.channel.id);
-        if (Array.isArray(response)) {
-            for (const res of response) {
-                if (res instanceof EmbedBuilder) {
-                    await channel.send({ embeds: [res] });
-                } else {
-                    await channel.send(res);
+        try {
+            const channel = client.channels.cache.get(message.channel.id);
+            if (Array.isArray(response)) {
+                for (const res of response) {
+                    if (typeof res === 'string') {
+                        await channel.send(res);
+                    } else {
+                        await channel.send({ embeds: [res] });
+                    }
                 }
+            } else if (typeof response === 'string') {
+                channel.send(response);
+            } else {
+                channel.send({ embeds: [response] });
             }
-        } else if (response instanceof Promise) {
-            response.then(res => {
-                channel.send(res);
-            });
-        } else {
-            channel.send(response);
+        } catch (e) {
+            console.error('Failed to send response:', e);
         }
     }
 }
 
 function handleMessageDeletion(message) {
-    if (message.channel.id !== config.liveChatChannel) return;
-    
-    if (!message.content || message.content.startsWith('`')) {
-        tagger.deleteTag(message.id);
+    const server = getServer(message);
+    try {
+        if (message.channel.id !== server.config.liveChatChannel) return;
+        
+        if (!message.content || message.content.startsWith('`')) {
+            server.tagger.deleteTag(message.id);
+        }
+    } catch (e) {
+        console.error(e);
     }
 }
 
 function handleMessageUpdate(oldMessage, newMessage) {
-    if (oldMessage.channel.id !== config.liveChatChannel) return;
-    if (oldMessage.author.bot) return;
-    if (oldMessage.content === newMessage.content) return;
+    const server = getServer(newMessage);
+    try {
+        if (oldMessage.channel.id !== server.config.liveChatChannel) return;
+        if (oldMessage.author.bot) return;
+        if (oldMessage.content === newMessage.content) return;
 
-    // handle tags
-    if (oldMessage.content.startsWith('`') && oldMessage.content.length > 1) {
-        if (newMessage.content.startsWith('`') && newMessage.content.length > 1) {
-            tagger.editTag(oldMessage.id, newMessage.content.substring(1).trim());
-        } else {
-            tagger.deleteTag(oldMessage.id);
+        // handle tags
+        if (oldMessage.content.startsWith('`') && oldMessage.content.length > 1) {
+            if (newMessage.content.startsWith('`') && newMessage.content.length > 1) {
+                server.tagger.editTag(oldMessage.id, newMessage.content.substring(1).trim());
+            } else {
+                server.tagger.deleteTag(oldMessage.id);
+            }
         }
+    } catch (e) {
+        console.error(e);
     }
 }
 
 function handleReactionAdd(reaction, user) {
-    if (reaction.message.channel.id !== config.liveChatChannel) return;
-    if (user.bot) return;
-    
-    if (reaction.message.content.startsWith('`')) {
-        switch (reaction.emoji.name) {
-            case '⭐':
-                tagger.addStar(reaction.message.id);
-                break;
-            case '❌':
-                tagger.deleteTag(reaction.message.id, user.id);
-                break;
-            default:
-                break;
+    const server = getServer(reaction.message);
+    try {
+        if (reaction.message.channel.id !== server.config.liveChatChannel) return;
+        if (user.bot) return;
+        
+        if (reaction.message.content.startsWith('`')) {
+            switch (reaction.emoji.name) {
+                case '⭐':
+                    server.tagger.addStar(reaction.message.id);
+                    break;
+                case '❌':
+                    server.tagger.deleteTag(reaction.message.id, user.id);
+                    break;
+                default:
+                    break;
+            }
         }
+    } catch (e) {
+        console.error(e);
     }
 }
 
 function handleReactionRemove(reaction, user) {
-    if (reaction.message.channel.id !== config.liveChatChannel) return;
-    if (user.bot) return;
-    
-    if (reaction.message.content.startsWith('`')) {
-        switch (reaction.emoji.name) {
-            case '⭐':
-                tagger.removeStar(reaction.message.id);
-                break;
-            default:
-                break;
+    const server = getServer(reaction.message);
+    try {
+        if (reaction.message.channel.id !== server.config.liveChatChannel) return;
+        if (user.bot) return;
+        
+        if (reaction.message.content.startsWith('`')) {
+            switch (reaction.emoji.name) {
+                case '⭐':
+                    server.tagger.removeStar(reaction.message.id);
+                    break;
+                default:
+                    break;
+            }
         }
+    } catch (e) {
+        console.error(e);
     }
 }
 
@@ -198,4 +216,4 @@ function parseCommand(content) {
     return { command, args };
 }
 
-client.login(config.token);
+client.login(appConfig.token);

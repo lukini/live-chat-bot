@@ -23,6 +23,9 @@ npm install
 - l?disableopen - disable auto open
 - l?enableclose - enable auto close with optional message
 - l?disableclose - disable auto close
+- l?livechat - set the channel where tagging will take place
+- l?output - set the channel where the bot will output tags automatically
+- l?track - start tracking a twitch user
 - l?status - show current status of auto open/close
 - l?tags - list all tags for the stream
-- l?setstream - sets the stream url (use only if the stream didn't get set)
+- l?stream - sets the stream url (use only if the stream didn't get set)
