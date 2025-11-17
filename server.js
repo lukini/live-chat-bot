@@ -211,8 +211,8 @@ class Server {
     addSubscriptions() {
         if (this.config.twitchUserId) {
             console.log('Subscribing to stream events for', this.config.twitchUserId);
-            //this.subs.push(this.listener.onStreamOnline(this.config.twitchUserId, (e) => this.streamStartHandler(e)));
-            //this.subs.push(this.listener.onStreamOffline(this.config.twitchUserId, (e) => this.streamEndHandler(e)));
+            this.subs.push(this.listener.onStreamOnline(this.config.twitchUserId, (e) => this.streamStartHandler(e)));
+            this.subs.push(this.listener.onStreamOffline(this.config.twitchUserId, (e) => this.streamEndHandler(e)));
         }
     }
 
