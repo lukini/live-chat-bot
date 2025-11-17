@@ -18,7 +18,7 @@ npm install
 - !adjust - adjust the time (in seconds) for the last tag the current user created
 - !tags - list current user's tags
 
-# Mod only commands (using default prefix)
+# Mod only commands
 - l?enableopen - enable auto open with optional message
 - l?disableopen - disable auto open
 - l?enableclose - enable auto close with optional message
