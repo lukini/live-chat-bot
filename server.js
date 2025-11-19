@@ -4,7 +4,7 @@ import configManager from './configManager.js';
 class Server {
     guildId = 0;
     config = null;
-    apiClient = null;
+    twitchApi = null;
     client = null;
     listener = null;
     tagger = null;
@@ -12,12 +12,12 @@ class Server {
 
     channelRegex = /<#(\d+)>/;
 
-    constructor(config, apiClient, client, listener) {
+    constructor(config, twitchApi, client, listener) {
         this.guildId = config.guildId;
-        this.apiClient = apiClient;
+        this.twitchApi = twitchApi;
         this.client = client;
         this.listener = listener;
-        this.tagger = new Tagger(apiClient);
+        this.tagger = new Tagger(twitchApi);
         this.config = new Proxy(config, {
             set(target, name, value) {
                 if (name in target) {
@@ -28,6 +28,7 @@ class Server {
                 return false;
             }
         });
+        this.addSubscriptions();
     }
 
     async streamStartHandler(e) {
@@ -102,6 +103,7 @@ class Server {
             case 'tags':
                 return this.tagger.listTags();
             case 'stream':
+            case 'setstream':
                 return this.tagger.setStreamUrl(args);
             default:
                 break;
@@ -113,7 +115,7 @@ class Server {
         if (message) {
             this.config.unlockMessage = message;
         }
-        return this.sendResponse(open, `${open ? 'Enabled' : 'Disabled'} automatic chat unlock`);
+        return this.createEmbed(open, `${open ? 'Enabled' : 'Disabled'} automatic chat unlock`);
     }
 
     setLockChannel(close, message) {
@@ -121,14 +123,14 @@ class Server {
         if (message) {
             this.config.lockMessage = message;
         }
-        return this.sendResponse(close, `${close ? 'Enabled' : 'Disabled'} automatic chat lock`);
+        return this.createEmbed(close, `${close ? 'Enabled' : 'Disabled'} automatic chat lock`);
     }
 
     setLiveChatChannel(channel) {
         const id = this.parseChannel(channel);
         if (id) {
             this.config.liveChatChannel = channel;
-            return this.sendResponse(true, 'Live chat channel set');
+            return this.createEmbed(true, 'Live chat channel set');
         }
     }
 
@@ -136,7 +138,7 @@ class Server {
         const id = this.parseChannel(channel);
         if (id) {
             this.config.outputChannel = channel;
-            return this.sendResponse(true, 'Output channel set');
+            return this.createEmbed(true, 'Output channel set');
         }
     }
 
@@ -155,24 +157,20 @@ class Server {
 
     async trackUser(user) {
         let twitchId;
-        if (!isNaN(parseInt(user))) {
-            try {
-                const twitchUser = await this.apiClient.users.getUserById(user);
+        try {
+            if (!isNaN(parseInt(user))) {
+                const twitchUser = await this.twitchApi.users.getUserById(user);
                 if (twitchUser?.id) {
                     twitchId = user;
                 }
-            } catch(e) {
-                console.log('Failed to get twitch user', e);
-            }
-        } else {
-            try {
-                const twitchUser = await this.apiClient.users.getUserByName(user);
+            } else {
+                const twitchUser = await this.twitchApi.users.getUserByName(user);
                 if (twitchUser?.id) {
                     twitchId = twitchUser.id;
                 }
-            } catch(e) {
-                console.log('Failed to get twitch user', e);
             }
+        } catch(e) {
+            console.log('Failed to get twitch user', e);
         }
 
         if (twitchId) {
@@ -182,13 +180,13 @@ class Server {
             this.config.twitchUserId = twitchId;
             this.addSubscriptions();
 
-            return this.sendResponse(true, `Tracking user id ${twitchId}`);
+            return this.createEmbed(true, `Tracking user id ${twitchId}`);
         }
 
-        return this.sendResponse(false, 'Twitch user not found');
+        return this.createEmbed(false, 'Twitch user not found');
     }
 
-    sendResponse(success, message) {
+    createEmbed(success, message) {
         return {
             color: success ? 0x00ff99 : 0xff4444,
             description: `${success ? '✅' : '❌'} ${message}`
@@ -208,6 +206,7 @@ class Server {
         };
     }
 
+    //TODO: see if this causes issues with multiple servers
     addSubscriptions() {
         if (this.config.twitchUserId) {
             console.log('Subscribing to stream events for', this.config.twitchUserId);

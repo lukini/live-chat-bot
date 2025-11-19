@@ -78,7 +78,7 @@ class Tagger {
             authorId: message.author.id,
             messageId: message.id,
             message: content,
-            time: new Date(message.createdAt.getTime() - (15 * 1000)),
+            time: new Date(message.createdAt.getTime() - (20 * 1000)),
             stars: 0
         };
         await message.react('⭐');

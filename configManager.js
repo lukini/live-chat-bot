@@ -3,6 +3,7 @@ import serverConfig from './serverConfig.json' with { type: 'json' };
 
 const dir = './configs';
 
+//TODO: switch to DB
 const configManager = {
     create: function(guildId) {
         const config = { ...serverConfig };
@@ -12,8 +13,12 @@ const configManager = {
     },
 
     getForId: function(guildId) {
+        return this.getConfig(`${guildId}.json`);
+    },
+
+    getConfig: function(filename) {
         try {
-            const file = readFileSync(dir + `/${guildId}.json`, 'utf8');
+            const file = readFileSync(dir + '/' + filename, 'utf8');
             return JSON.parse(file);
         } catch (e) {
             console.error('Unable to read config file:', e);
@@ -23,11 +28,10 @@ const configManager = {
 
     getAll: function() {
         try {
-            //TODO: make sure this can never fail somehow
             const filenames = readdirSync(dir);
             const configs = [];
             filenames.forEach(filename => {
-                configs.push(this.getForId(filename.split('.')[0]));
+                configs.push(this.getConfig(filename));
             });
             return configs;
         } catch (e) {
