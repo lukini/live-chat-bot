@@ -1,14 +1,17 @@
+import { readFileSync } from 'fs';
 import { Client, Events, GatewayIntentBits } from 'discord.js';
 import { NgrokAdapter } from '@twurple/eventsub-ngrok';
 import { EventSubHttpListener } from '@twurple/eventsub-http';
 import { ApiClient } from '@twurple/api';
 import { AppTokenAuthProvider } from '@twurple/auth';
-import appConfig from './appConfig.json' with { type: 'json' };
+import minimist from 'minimist';
+import appConfigJson from './appConfig.json' with { type: 'json' };
 import configManager from './configManager.js';
 import Server from './server.js';
 import EventHandler from './eventHandler.js';
 
-//TODO: get config from command line
+const args = minimist(process.argv.slice(2));
+const appConfig = loadConfig(args);
 
 const client = new Client({
     intents: [
@@ -23,6 +26,7 @@ let eventHandler;
 client.once(Events.ClientReady, async () => {
     const authProvider = new AppTokenAuthProvider(appConfig.twitchClientId, appConfig.twitchClientSecret);
     const twitchApi = new ApiClient({ authProvider });
+    //TODO: replace ngrok?
     const listener = new EventSubHttpListener({
         apiClient: twitchApi,
         adapter: new NgrokAdapter({
@@ -66,5 +70,15 @@ client.once(Events.ClientReady, async () => {
 
     listener.start();
 });
+
+function loadConfig(args) {
+    let config = appConfigJson;
+    if (args.config) {
+        config = JSON.parse(readFileSync(args.config, 'utf8'));
+    }
+    return config;
+}
+
+//TODO: kill subs on process end?
 
 client.login(appConfig.token);
