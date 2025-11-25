@@ -32,7 +32,7 @@ class Server {
     }
 
     async streamStartHandler(e) {
-        console.log('Stream started at ', e.startDate);
+        console.log('Stream started at', e.startDate);
         this.tagger.startStream(e);
 
         if (this.config.unlockChannel && this.config.liveChatChannel) {
@@ -47,7 +47,7 @@ class Server {
     }
 
     async streamEndHandler() {
-        console.log('Stream ended at ', new Date());
+        console.log('Stream ended at', new Date());
         this.tagger.streamEnd = new Date();
 
         if (this.config.lockChannel && this.config.liveChatChannel) {
@@ -100,8 +100,12 @@ class Server {
                 return this.trackUser(args);
             case 'status':
                 return this.sendStatus();
+            case 'checkurl':
+                return this.checkUrl();
             case 'tags':
                 return this.tagger.listTags();
+            case 'deletetags':
+                return this.tagger.deleteTags();
             case 'stream':
             case 'setstream':
                 return this.tagger.setStreamUrl(args);
@@ -206,7 +210,10 @@ class Server {
         };
     }
 
-    //TODO: see if this causes issues with multiple servers
+    checkUrl() {
+        return this.streamUrl;
+    }
+
     addSubscriptions() {
         if (this.config.twitchUserId) {
             console.log('Subscribing to stream events for', this.config.twitchUserId);

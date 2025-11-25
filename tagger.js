@@ -20,7 +20,7 @@ class Tagger {
 
         setTimeout(() => {
             this.checkForVod(startEvent.broadcasterId, 0);
-        }, 2 * 60 * 1000); // wait 2 minutes
+        }, 30 * 1000); // wait 30 seconds
     }
 
     async setStreamUrl(url) {
@@ -53,23 +53,23 @@ class Tagger {
             });
             if (videos.data.length !== 0) {
                 const latestVideo = videos.data[0];
-                console.log('Latest video ID: ', latestVideo.url);
+                console.log('Latest video ID:', latestVideo.url);
                 if (latestVideo.streamId === this.streamId) {
                     console.log('Matches current stream');
                     this.streamUrl = latestVideo.url;
                     this.streamStart = latestVideo.creationDate;
-                    console.log('VOD creation date: ', this.streamStart);
+                    console.log('VOD creation date:', this.streamStart);
                     return;
                 }
             }
         } catch (e) {
-            console.error('Error checking for VOD: ', e);
+            console.error('Error checking for VOD:', e);
         }
         
         if (retryCount < 5) {
             setTimeout(() => {
                 this.checkForVod(twitchUserId, retryCount + 1);
-            }, 5 * 60 * 1000); // wait 5 minutes
+            }, 2 * 60 * 1000); // wait 2 minutes
         }
     }
 
@@ -128,6 +128,10 @@ class Tagger {
         this.streamEnd = null;
         this.streamId = null;
         this.streamUrl = null;
+        return {
+            color: 0x00ff99,
+            description: 'Tags deleted'
+        };
     }
 
     listTags(userId) {
@@ -140,21 +144,33 @@ class Tagger {
         let tagInfo = `Stream start: <t:${parseInt(this.streamStart / 1000, 10)}:f>, `;
         tagInfo += `${tagList.length} tags (${(tagList.length / minutes).toPrecision(2)}/min)\n`;
 
-        let firstEmbed = true;
+        let firstEmbed = true,
+            length = 0,
+            lines = [];
         const embeds = [];
         
-        for (let i = 0; i < tagList.length; i += this.tagsPerEmbed) {
-            const embed = {};
-            let description = tagList.slice(i, i + this.tagsPerEmbed).map(tag => this.printTag(tag)).join('');
+        for (let i = 0; i < tagList.length; i++) {
+            const line = this.printTag(tagList[i]);
+            lines.push(line);
+            length += line.length;
 
-            if (firstEmbed) {
-                description = tagInfo + description;
-                embed.title = 'Tags';
-                firstEmbed = false;
+            // make sure the description is under 4096
+            if (lines.length === this.tagsPerEmbed ||
+                i === tagList.length-1 ||
+                length + tagList[i+1].message.length > 3900
+            ) {
+                const embed = {};
+                let description = lines.join('');
+                if (firstEmbed) {
+                    description = tagInfo + description;
+                    embed.title = 'Tags';
+                    firstEmbed = false;
+                }
+                embed.description = description;
+                embeds.push(embed);
+                length = 0;
+                lines = [];
             }
-            
-            embed.description = description;
-            embeds.push(embed);
         }
 
         return embeds;
