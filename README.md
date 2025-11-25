@@ -27,5 +27,7 @@ npm install
 - l?output - set the channel where the bot will output tags automatically
 - l?track - start tracking a twitch user
 - l?status - show current status of auto open/close
+- l?checkurl - check the current stream url
 - l?tags - list all tags for the stream
+- l?deletetags - deletes the current tags
 - l?stream - sets the stream url (use only if the stream didn't get set)
