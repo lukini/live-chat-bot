@@ -131,31 +131,32 @@ class Server {
     }
 
     setLiveChatChannel(channel) {
-        const id = this.parseChannel(channel);
-        if (id) {
-            this.config.liveChatChannel = channel;
-            return this.createEmbed(true, 'Live chat channel set');
-        }
+        return this.setChannel('liveChatChannel', channel);
     }
 
     setOutputChannel(channel) {
-        const id = this.parseChannel(channel);
-        if (id) {
-            this.config.outputChannel = channel;
-            return this.createEmbed(true, 'Output channel set');
-        }
+        return this.setChannel('outputChannel', channel);
     }
 
-    parseChannel(channel) {
+    setChannel(ref, id) {
         let result;
-        if (!isNaN(parseInt(channel))) {
-            result = channel;
-        } else if ((result = this.channelRegex.exec(channel)) !== null) {
+        if (!isNaN(parseInt(id))) {
+            result = id;
+        } else if ((result = this.channelRegex.exec(id)) !== null) {
             result = result[1];
         }
 
-        if (result && this.client.channels.cache.get(result)) {
-            return result;
+        if (result) {
+            const channel = this.client.channels.cache.get(result);
+            if (channel?.guildId === this.guildId) {
+                this.config[ref] = result;
+                return this.createEmbed(true, 'Channel set');
+            } else {
+                return this.createEmbed(false, 'Channel not found');
+            }
+        } else {
+            this.config[ref] = undefined;
+            return this.createEmbed(false, 'Channel removed');
         }
     }
 
@@ -203,9 +204,9 @@ class Server {
             description: `
                 **Auto Unlock:** ${ this.config.unlockChannel ? 'on' : 'off' }
                 **Auto Lock:** ${ this.config.lockChannel ? 'on' : 'off' }
-                **Tagging:** <#${this.config.liveChatChannel}>
-                **Output:** <#${this.config.outputChannel}>
-                **Tracking User:** ${this.config.twitchUserId}
+                **Tagging:** ${ this.config.liveChatChannel ? `<#${this.config.liveChatChannel}>` : 'not set' }
+                **Output:** ${ this.config.outputChannel ? `<#${this.config.outputChannel}>` : 'not set' }
+                **Tracking User:** ${ this.config.twitchUserId ? this.config.twitchUserId : 'none' }
             `
         };
     }
@@ -224,6 +225,7 @@ class Server {
 
     removeSubscriptions() {
         this.subs.forEach(s => s.stop());
+        this.subs = [];
     }
 }
 

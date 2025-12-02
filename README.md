@@ -14,20 +14,20 @@ npm install
 ```
 
 # Commands
-- ` - start message with this to add a tag for the stream
-- !adjust - adjust the time (in seconds) for the last tag the current user created
-- !tags - list current user's tags
+- ` - Start a message with this to add a tag for the stream
+- !adjust - Adjust the time (in seconds) for the last tag the current user created
+- !tags - List current user's tags
 
 # Mod only commands
-- l?enableopen - enable auto open with optional message
-- l?disableopen - disable auto open
-- l?enableclose - enable auto close with optional message
-- l?disableclose - disable auto close
-- l?livechat - set the channel where tagging will take place
-- l?output - set the channel where the bot will output tags automatically
-- l?track - start tracking a twitch user
-- l?status - show current status of auto open/close
-- l?checkurl - check the current stream url
-- l?tags - list all tags for the stream
-- l?deletetags - deletes the current tags
-- l?stream - sets the stream url (use only if the stream didn't get set)
+- l?enableopen - Enable auto open with optional message
+- l?disableopen - Disable auto open
+- l?enableclose - Enable auto close with optional message
+- l?disableclose - Disable auto close
+- l?livechat - Set the channel where tagging will take place. Takes a @channel or id.
+- l?output - Set the channel where tags will be output. Takes a @channel or id.
+- l?track - Start tracking a twitch user. Takes a username or id.
+- l?status - Show current status of the bot's config
+- l?checkurl - Check the current stream url
+- l?tags - List all tags for the stream
+- l?deletetags - Delete the current tags
+- l?stream - Set the stream url (use only if the stream didn't get set)
