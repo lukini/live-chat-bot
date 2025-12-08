@@ -1,5 +1,5 @@
 import Tagger from './tagger.js';
-import configManager from './configManager.js';
+import db from './db.js';
 
 class Server {
     guildId = 0;
@@ -17,12 +17,12 @@ class Server {
         this.twitchApi = twitchApi;
         this.client = client;
         this.listener = listener;
-        this.tagger = new Tagger(twitchApi);
+        this.tagger = new Tagger(config.guildId, twitchApi);
         this.config = new Proxy(config, {
             set(target, name, value) {
                 if (name in target) {
                     target[name] = value;
-                    configManager.save(target);
+                    db.updateServer(target.guildId, name, value);
                     return true;
                 }
                 return false;
@@ -32,7 +32,7 @@ class Server {
     }
 
     async streamStartHandler(e) {
-        console.log('Stream started at', e.startDate);
+        console.log(`[${this.guildId}] Stream started at`, e.startDate);
         this.tagger.startStream(e);
 
         if (this.config.unlockChannel && this.config.liveChatChannel) {
@@ -47,7 +47,7 @@ class Server {
     }
 
     async streamEndHandler() {
-        console.log('Stream ended at', new Date());
+        console.log(`[${this.guildId}] Stream ended at`, new Date());
         this.tagger.streamEnd = new Date();
 
         if (this.config.lockChannel && this.config.liveChatChannel) {
@@ -92,6 +92,10 @@ class Server {
                 return this.setLockChannel(true, args);
             case 'disableclose':
                 return this.setLockChannel(false);
+            case 'openmessage':
+                return this.setUnlockMessage(args);
+            case 'closemessage':
+                return this.setLockMessage(args);
             case 'livechat':
                 return this.setLiveChatChannel(args);
             case 'output':
@@ -101,7 +105,7 @@ class Server {
             case 'status':
                 return this.sendStatus();
             case 'checkurl':
-                return this.checkUrl();
+                return this.tagger.getStreamUrl();
             case 'tags':
                 return this.tagger.listTags();
             case 'deletetags':
@@ -128,6 +132,16 @@ class Server {
             this.config.lockMessage = message;
         }
         return this.createEmbed(close, `${close ? 'Enabled' : 'Disabled'} automatic chat lock`);
+    }
+
+    setUnlockMessage(message) {
+        this.config.unlockMessage = message;
+        return this.createEmbed(true, `Message set to ${message}`);
+    }
+
+    setLockMessage(message) {
+        this.config.lockMessage = message;
+        return this.createEmbed(true, `Message set to ${message}`);
     }
 
     setLiveChatChannel(channel) {
@@ -161,6 +175,12 @@ class Server {
     }
 
     async trackUser(user) {
+        if (!user?.trim()) {
+            this.config.twitchUserId = undefined;
+            this.removeSubscriptions();
+            return this.createEmbed(true, 'Stopped tracking user');
+        }
+
         let twitchId;
         try {
             if (!isNaN(parseInt(user))) {
@@ -211,13 +231,9 @@ class Server {
         };
     }
 
-    checkUrl() {
-        return this.streamUrl;
-    }
-
     addSubscriptions() {
         if (this.config.twitchUserId) {
-            console.log('Subscribing to stream events for', this.config.twitchUserId);
+            console.log(`[${this.guildId}] Subscribing to stream events for`, this.config.twitchUserId);
             this.subs.push(this.listener.onStreamOnline(this.config.twitchUserId, (e) => this.streamStartHandler(e)));
             this.subs.push(this.listener.onStreamOffline(this.config.twitchUserId, (e) => this.streamEndHandler(e)));
         }

@@ -5,6 +5,6 @@
     "twitchUserId": "",
     "unlockMessage": "",
     "lockMessage": "",
-    "unlockChannel": false,
-    "lockChannel": false
+    "unlockChannel": 0,
+    "lockChannel": 0
 }

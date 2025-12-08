@@ -1,5 +1,5 @@
 import { PermissionsBitField } from 'discord.js';
-import configManager from './configManager.js';
+import db from './db.js';
 import Server from './server.js';
 
 class EventHandler {
@@ -16,9 +16,7 @@ class EventHandler {
     }
     
     handleServerAddition(guild) {
-        const config = configManager.create(guild.id);
-        const server = new Server(config, this.twitchApi, this.client, this.listener);
-        this.servers.push(server);
+        this.createServer(guild.id);
     }
 
     handleServerRemoval(guild) {
@@ -26,12 +24,23 @@ class EventHandler {
         if (index >= 0) {
             this.servers[index].removeSubscriptions();
             this.servers.splice(index, 1);
-            configManager.delete(guild.id);
+            db.deleteServer(guild.id);
         }
     }
 
     getServer(message) {
-        return this.servers.find(s => s.guildId === message.guildId);
+        let server = this.servers.find(s => s.guildId === message.guildId);
+        if (!server) {
+            server = this.createServer(message.guildId);
+        }
+        return server;
+    }
+
+    createServer(guildId) {
+        const config = db.createServer(guildId);
+        const server = new Server(config, this.twitchApi, this.client, this.listener);
+        this.servers.push(server);
+        return server;
     }
 
     async handleNewMessage(message) {
@@ -59,7 +68,7 @@ class EventHandler {
                 }
             }
         } catch (e) {
-            console.error('Failed to run command:', e);
+            console.error(`[${message.guildId}] Failed to run command:`, e);
         }
         
         if (response instanceof Promise) {
@@ -69,25 +78,27 @@ class EventHandler {
         }
 
         if (response) {
-            console.log('Command response: ', response);
+            console.log(`[${message.guildId}] Command response:`, response);
             try {
                 const channel = this.client.channels.cache.get(message.channel.id);
                 if (Array.isArray(response)) {
                     for (const res of response) {
-                        if (typeof res === 'string') {
-                            await channel.send(res);
-                        } else {
-                            await channel.send({ embeds: [res] });
-                        }
+                        await this.sendResponse(channel, res);
                     }
-                } else if (typeof response === 'string') {
-                    channel.send(response);
                 } else {
-                    channel.send({ embeds: [response] });
+                    await this.sendResponse(channel, response);
                 }
             } catch (e) {
-                console.error('Failed to send response:', e);
+                console.error(`[${message.guildId}] Failed to send response:`, e);
             }
+        }
+    }
+
+    async sendResponse(channel, response) {
+        if (typeof response === 'string') {
+            await channel.send(response);
+        } else {
+            await channel.send({ embeds: [response] });
         }
     }
 

@@ -1,16 +1,23 @@
+import db from './db.js';
+
 class Tagger {
     tagsPerEmbed = 22;
     apiClient = null;
 
     tags = [];
+    guildId = null;
     streamStart = null;
     streamEnd = null;
     streamId = null;
     streamUrl = null;
 
-    constructor(apiClient) {
+    constructor(guildId, apiClient) {
+        this.guildId = guildId;
         this.apiClient = apiClient;
-        //TODO: get tags from DB
+        this.tags = db.getTags(guildId).map(tag => this.createProxy(tag));
+        const config = db.getStream(guildId);
+        this.streamStart = config.streamStart;
+        this.streamUrl = config.streamUrl;
     }
 
     startStream(startEvent) {
@@ -28,9 +35,8 @@ class Tagger {
             const streamId = url.split('/').pop().split('?')[0];
             const video = await this.apiClient.videos.getVideoById(streamId);
             if (video?.creationDate) {
-                this.streamUrl = url;
                 this.streamId = streamId;
-                this.streamStart = video.creationDate;
+                this.createStream(url, video.creationDate);
                 return {
                     color: 0x00ff99,
                     description: `Stream set to ${streamId}`
@@ -53,12 +59,10 @@ class Tagger {
             });
             if (videos.data.length !== 0) {
                 const latestVideo = videos.data[0];
-                console.log('Latest video ID:', latestVideo.url);
+                console.log(`[${this.guildId}] Latest video ID:`, latestVideo.url);
                 if (latestVideo.streamId === this.streamId) {
                     console.log('Matches current stream');
-                    this.streamUrl = latestVideo.url;
-                    this.streamStart = latestVideo.creationDate;
-                    console.log('VOD creation date:', this.streamStart);
+                    this.createStream(latestVideo.url, latestVideo.creationDate);
                     return;
                 }
             }
@@ -73,17 +77,39 @@ class Tagger {
         }
     }
 
+    createStream(url, date) {
+        this.streamUrl = url;
+        this.streamStart = date;
+        db.createStream(this);
+    }
+
     async createTag(message, content) {
-        const tag = {
+        const tag = this.createProxy({
             authorId: message.author.id,
             messageId: message.id,
             message: content,
+            createdAt: message.createdAt,
             time: new Date(message.createdAt.getTime() - (20 * 1000)),
-            stars: 0
-        };
+            stars: 0,
+            guildId: this.guildId
+        });
+        db.createTag(tag);
         await message.react('⭐');
         await message.react('❌');
         this.tags.push(tag);
+    }
+
+    createProxy(tag) {
+        return new Proxy(tag, {
+            set(target, name, value) {
+                if (name in target) {
+                    target[name] = value;
+                    db.updateTag(target.messageId, name, value);
+                    return true;
+                }
+                return false;
+            }
+        });
     }
 
     adjustTime(message, offset) {
@@ -128,6 +154,8 @@ class Tagger {
         this.streamEnd = null;
         this.streamId = null;
         this.streamUrl = null;
+        db.deleteStream(this.guildId);
+        db.deleteTags(this.guildId);
         return {
             color: 0x00ff99,
             description: 'Tags deleted'
@@ -174,6 +202,10 @@ class Tagger {
         }
 
         return embeds;
+    }
+
+    getStreamUrl() {
+        return this.streamUrl;
     }
 
     printTag(tag) {

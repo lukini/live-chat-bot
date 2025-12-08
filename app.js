@@ -6,7 +6,7 @@ import { ApiClient } from '@twurple/api';
 import { AppTokenAuthProvider } from '@twurple/auth';
 import minimist from 'minimist';
 import appConfigJson from './appConfig.json' with { type: 'json' };
-import configManager from './configManager.js';
+import db from './db.js';
 import Server from './server.js';
 import EventHandler from './eventHandler.js';
 
@@ -38,7 +38,7 @@ client.once(Events.ClientReady, async () => {
     });
 
     const servers = [];
-    const configs = configManager.getAll();
+    const configs = db.getAllServers();
     for (const config of configs) {
         servers.push(new Server(config, twitchApi, client, listener));
         console.log('Server loaded with id', config.guildId);

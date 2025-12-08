@@ -13,6 +13,8 @@ git clone the repository and run this from the folder
 npm install
 ```
 
+Update the appConfig.json file with all your values from above along with your discord bot's token.  Alternately, you can pass in your own file location with `--config`.
+
 # Commands
 - ` - Start a message with this to add a tag for the stream
 - !adjust - Adjust the time (in seconds) for the last tag the current user created
@@ -23,6 +25,8 @@ npm install
 - l?disableopen - Disable auto open
 - l?enableclose - Enable auto close with optional message
 - l?disableclose - Disable auto close
+- l?openmessage - Sets the auto open message
+- l?closemessage - Sets the auto close message
 - l?livechat - Set the channel where tagging will take place. Takes a @channel or id.
 - l?output - Set the channel where tags will be output. Takes a @channel or id.
 - l?track - Start tracking a twitch user. Takes a username or id.
