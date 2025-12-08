@@ -221,13 +221,12 @@ class Server {
     sendStatus() {
         return {
             title: 'Status',
-            description: `
-                **Auto Unlock:** ${ this.config.unlockChannel ? 'on' : 'off' }
-                **Auto Lock:** ${ this.config.lockChannel ? 'on' : 'off' }
-                **Tagging:** ${ this.config.liveChatChannel ? `<#${this.config.liveChatChannel}>` : 'not set' }
-                **Output:** ${ this.config.outputChannel ? `<#${this.config.outputChannel}>` : 'not set' }
-                **Tracking User:** ${ this.config.twitchUserId ? this.config.twitchUserId : 'none' }
-            `
+            description:
+                `**Auto Unlock:** ${ this.config.unlockChannel ? 'on' : 'off' }\n` +
+                `**Auto Lock:** ${ this.config.lockChannel ? 'on' : 'off' }\n` +
+                `**Tagging:** ${ this.config.liveChatChannel ? `<#${this.config.liveChatChannel}>` : 'not set' }\n` +
+                `**Output:** ${ this.config.outputChannel ? `<#${this.config.outputChannel}>` : 'not set' }\n` +
+                `**Tracking User:** ${ this.config.twitchUserId ? this.config.twitchUserId : 'none' }\n`
         };
     }
 
