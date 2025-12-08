@@ -60,7 +60,7 @@ class Server {
             }] });
         }
         
-        if (this.tagger.streamUrl) {
+        if (this.tagger.streamUrl && this.config.outputChannel) {
             const tags = this.tagger.listTags();
             const channel = this.client.channels.cache.get(this.config.outputChannel);
             for (const embed of tags) {
