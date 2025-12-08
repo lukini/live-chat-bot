@@ -140,6 +140,7 @@ class Tagger {
     deleteTag(messageId, userId) {
         const index = this.tags.findLastIndex(t => t.messageId === messageId);
         if (index >= 0 && (!userId || this.tags[index].authorId === userId)) {
+            db.deleteTag(messageId);
             this.tags.splice(index, 1);
         }
     }

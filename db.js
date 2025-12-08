@@ -101,6 +101,10 @@ const db = {
         }
     },
 
+    deleteTag: function(messageId) {
+        database.prepare('DELETE FROM Tags WHERE messageId = ?').run(messageId);
+    },
+
     deleteTags: function(guildId) {
         database.prepare('DELETE FROM Tags WHERE guildId = ?').run(guildId);
     }
