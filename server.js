@@ -195,7 +195,7 @@ class Server {
                 }
             }
         } catch(e) {
-            console.log('Failed to get twitch user', e);
+            console.log(`[${this.guildId}] Failed to get twitch user`, e);
         }
 
         if (twitchId) {

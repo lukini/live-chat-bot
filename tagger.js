@@ -43,7 +43,7 @@ class Tagger {
                 };
             }
         } catch (e) {
-            console.error('Error getting video: ', e);
+            console.error(`[${this.guildId}] Error getting video:`, e);
         }
         return {
             color: 0xff4444,
@@ -67,7 +67,7 @@ class Tagger {
                 }
             }
         } catch (e) {
-            console.error('Error checking for VOD:', e);
+            console.error(`[${this.guildId}] Error checking for VOD:`, e);
         }
         
         if (retryCount < 5) {
