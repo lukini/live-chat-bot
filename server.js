@@ -169,14 +169,14 @@ class Server {
                 return this.createEmbed(false, 'Channel not found');
             }
         } else {
-            this.config[ref] = undefined;
+            this.config[ref] = null;
             return this.createEmbed(false, 'Channel removed');
         }
     }
 
     async trackUser(user) {
         if (!user?.trim()) {
-            this.config.twitchUserId = undefined;
+            this.config.twitchUserId = null;
             this.removeSubscriptions();
             return this.createEmbed(true, 'Stopped tracking user');
         }
