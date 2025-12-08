@@ -27,8 +27,8 @@ Update the appConfig.json file with all your values from above along with your d
 - l?disableclose - Disable auto close
 - l?openmessage - Sets the auto open message
 - l?closemessage - Sets the auto close message
-- l?livechat - Set the channel where tagging will take place. Takes a @channel or id.
-- l?output - Set the channel where tags will be output. Takes a @channel or id.
+- l?livechat - Set the channel where tagging will take place. Takes a #channel or id.
+- l?output - Set the channel where tags will be output. Takes a #channel or id.
 - l?track - Start tracking a twitch user. Takes a username or id.
 - l?status - Show current status of the bot's config
 - l?checkurl - Check the current stream url
