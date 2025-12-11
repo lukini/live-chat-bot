@@ -32,14 +32,19 @@ class Tagger {
 
     async setStreamUrl(url) {
         try {
-            const streamId = url.split('/').pop().split('?')[0];
-            const video = await this.apiClient.videos.getVideoById(streamId);
+            const videoId = url.split('/').pop().split('?')[0];
+            const video = await this.apiClient.videos.getVideoById(videoId);
             if (video?.creationDate) {
-                this.streamId = streamId;
-                this.createStream(url, video.creationDate);
+                // delete existing stream if it exists
+                if (this.streamUrl) {
+                    db.deleteStream(this.guildId);
+                }
+                this.streamId = video.streamId;
+                const baseUrl = url.split('?')[0];
+                this.createStream(baseUrl, video.creationDate);
                 return {
                     color: 0x00ff99,
-                    description: `Stream set to ${streamId}`
+                    description: `Stream ID: ${this.streamId}, Start: <t:${parseInt(this.streamStart / 1000, 10)}:f>`
                 };
             }
         } catch (e) {
@@ -151,16 +156,20 @@ class Tagger {
 
     deleteTags() {
         this.tags = [];
-        this.streamStart = null;
         this.streamEnd = null;
         this.streamId = null;
-        this.streamUrl = null;
-        db.deleteStream(this.guildId);
         db.deleteTags(this.guildId);
+        this.deleteStream();
         return {
             color: 0x00ff99,
             description: 'Tags deleted'
         };
+    }
+
+    deleteStream() {
+        this.streamUrl = null;
+        this.streamStart = null;
+        db.deleteStream(this.guildId);
     }
 
     listTags(userId) {
