@@ -8,12 +8,15 @@
 [Node.js](https://nodejs.org/en/download) and [ngrok](https://ngrok.com/download) are currently required to run locally. Get your ngrok auth token [here](https://dashboard.ngrok.com/get-started/your-authtoken) and your register the app with twitch [following these steps](https://dev.twitch.tv/docs/authentication/register-app) to get your client id/secret.
 
 # Install
-git clone the repository and run this from the folder
+git clone the repository and run this from the folder:
 ```
 npm install
 ```
 
-Update the appConfig.json file with all your values from above along with your discord bot's token.  Alternately, you can pass in your own file location with `--config`.
+Update the appConfig.json file with all your values from above along with your discord bot's token.  Alternately, you can pass in your own file location with `--config`:
+```
+node app.js --config path/to/config.json
+```
 
 # Commands
 - ` - Start a message with this to add a tag for the stream
@@ -27,9 +30,9 @@ Update the appConfig.json file with all your values from above along with your d
 - l?disableclose - Disable auto close
 - l?openmessage - Sets the auto open message
 - l?closemessage - Sets the auto close message
-- l?livechat - Set the channel where tagging will take place. Takes a #channel or id.
-- l?output - Set the channel where tags will be output. Takes a #channel or id.
-- l?track - Start tracking a twitch user. Takes a username or id.
+- l?livechat - Set the channel where tagging will take place. Takes a #channel or id. Removes channel if one isn't given.
+- l?output - Set the channel where tags will be output. Takes a #channel or id. Removes channel if one isn't given.
+- l?track - Start tracking a twitch user. Takes a username or id. Removes tracking if one isn't given.
 - l?status - Show current status of the bot's config
 - l?checkurl - Check the current stream url
 - l?tags - List all tags for the stream
