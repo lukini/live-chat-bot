@@ -8,21 +8,34 @@
 [Node.js](https://nodejs.org/en/download) and [ngrok](https://ngrok.com/download) are currently required to run locally. Get your ngrok auth token [here](https://dashboard.ngrok.com/get-started/your-authtoken) and your register the app with twitch [following these steps](https://dev.twitch.tv/docs/authentication/register-app) to get your client id/secret.
 
 # Install
-git clone the repository and run this from the folder
+git clone the repository and run this from the folder:
 ```
 npm install
 ```
 
-# Commands
-- ` - start message with this to add a tag for the stream
-- !adjust - adjust the time (in seconds) for the last tag the current user created
-- !tags - list current user's tags
+Update the appConfig.json file with all your values from above along with your discord bot's token.  Alternately, you can pass in your own file location with `--config`:
+```
+node app.js --config path/to/config.json
+```
 
-# Mod only commands (using default prefix)
-- l?enableopen - enable auto open with optional message
-- l?disableopen - disable auto open
-- l?enableclose - enable auto close with optional message
-- l?disableclose - disable auto close
-- l?status - show current status of auto open/close
-- l?tags - list all tags for the stream
-- l?setstream - sets the stream url (use only if the stream didn't get set)
+# Commands
+- ` - Start a message with this to add a tag for the stream
+- !adjust - Adjust the time (in seconds) for the last tag the current user created
+- !tags - List current user's tags
+
+# Mod only commands
+- l?enableopen - Enable auto open with optional message
+- l?disableopen - Disable auto open
+- l?enableclose - Enable auto close with optional message
+- l?disableclose - Disable auto close
+- l?openmessage - Sets the auto open message
+- l?closemessage - Sets the auto close message
+- l?livechat - Set the channel where tagging will take place. Takes a #channel or id. Removes channel if one isn't given.
+- l?output - Set the channel where tags will be output. Takes a #channel or id. Removes channel if one isn't given.
+- l?track - Start tracking a twitch user. Takes a username or id. Removes tracking if one isn't given.
+- l?status - Show current status of the bot's config
+- l?checkurl - Check the current stream url
+- l?tags - List all tags for the stream
+- l?cleartags - Clear the current tags
+- l?startstream - Manually start stream. For use when auto open is off. Takes a VOD url
+- l?stream - Set the VOD url (use only if the stream didn't get set automatically)

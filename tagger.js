@@ -1,33 +1,76 @@
-import { EmbedBuilder } from 'discord.js';
+import db from './db.js';
 
-const tagger = {
-    tagsPerEmbed: 22,
-    apiClient: null,
+class Tagger {
+    tagsPerEmbed = 25;
+    apiClient = null;
 
-    tags: [],
-    streamStart: null,
-    streamEnd: null,
-    streamId: null,
-    streamUrl: null,
+    tags = [];
+    guildId = null;
+    streamStart = null;
+    streamEnd = null;
+    streamId = null;
+    streamUrl = null;
 
-    setStreamUrl: async function(url) {
-        const streamId = url.split('/').pop().trim();
-
-        try {
-            const video = await this.apiClient.videos.getVideoById(streamId);
-            if (video?.creationDate) {
-                this.streamUrl = url;
-                this.streamId = streamId;
-                this.streamStart = video.creationDate;
-                return `Stream set to ${streamId}`;
-            }
-        } catch (e) {
-            console.error('Error getting video: ', e);
+    constructor(guildId, apiClient) {
+        this.guildId = guildId;
+        this.apiClient = apiClient;
+        const config = db.getLatestStream(guildId);
+        // stream is live if end time isn't set
+        if (config && !config.streamEnd) {
+            this.streamId = config.streamId;
+            this.streamStart = config.streamStart;
+            this.streamEnd = config.streamEnd;
+            this.streamUrl = config.streamUrl;
+            this.tags = db.getTags(guildId, this.streamId).map(tag => this.createProxy(tag));
         }
-        return 'Error setting stream URL';
-    },
+    }
 
-    checkForVod: async function(twitchUserId, retryCount) {
+    startStream(startEvent) {
+        this.deleteTags();
+        this.streamStart = startEvent.startDate;
+        this.streamId = startEvent.id;
+        this.streamUrl = null;
+        this.streamEnd = null;
+
+        setTimeout(() => {
+            this.checkForVod(startEvent.broadcasterId, 0);
+        }, 30 * 1000); // wait 30 seconds
+    }
+
+    endStream() {
+        this.streamEnd = new Date();
+        db.setStreamEndTime(this.streamId, this.streamEnd);
+        this.streamId = null;
+    }
+
+    startStreamManually(url) {
+        this.deleteTags();
+        this.setStreamUrl(url);
+    }
+
+    async setStreamUrl(url) {
+        const video = await this.getVideo(url);
+
+        if (video?.streamId) {
+            // handle existing stream if it exists
+            if (this.streamId) {
+                db.moveTagsToNewStream(this.guildId, this.streamId, video.streamId);
+                db.deleteStream(this.guildId, this.streamId);
+            }
+            this.createStream(video);
+            return {
+                color: 0x00ff99,
+                description: `Stream ID: ${this.streamId}, Start: <t:${parseInt(this.streamStart / 1000, 10)}:f>`
+            };
+        } else {
+            return {
+                color: 0xff4444,
+                description: 'Error setting stream URL'
+            };
+        }
+    }
+
+    async checkForVod(twitchUserId, retryCount) {
         try {
             const videos = await this.apiClient.videos.getVideosByUser(twitchUserId, {
                 type: 'archive',
@@ -35,40 +78,78 @@ const tagger = {
             });
             if (videos.data.length !== 0) {
                 const latestVideo = videos.data[0];
-                console.log('Latest video ID: ', latestVideo.url);
+                console.log(`[${this.guildId}] Latest video ID:`, latestVideo.url);
                 if (latestVideo.streamId === this.streamId) {
                     console.log('Matches current stream');
-                    this.streamUrl = latestVideo.url;
-                    this.streamStart = latestVideo.creationDate;
-                    console.log('VOD creation date: ', this.streamStart);
+                    this.createStream(latestVideo, true);
                     return;
                 }
             }
         } catch (e) {
-            console.error('Error checking for VOD: ', e);
+            console.error(`[${this.guildId}] Error checking for VOD:`, e);
         }
         
         if (retryCount < 5) {
             setTimeout(() => {
                 this.checkForVod(twitchUserId, retryCount + 1);
-            }, 5 * 60 * 1000); // wait 5 minutes
+            }, 2 * 60 * 1000); // wait 2 minutes
         }
-    },
+    }
 
-    createTag: async function(message, content) {
-        const tag = {
+    async getVideo(url) {
+        try {
+            const videoId = url.split('/').pop().split('?')[0];
+            return await this.apiClient.videos.getVideoById(videoId);
+        } catch (e) {
+            console.error(`[${this.guildId}] Error getting video:`, e);
+        }
+    }
+
+    createStream(video, autoStart) {
+        this.streamId = video.streamId;
+        this.streamUrl = video.url;
+        this.streamStart = video.creationDate;
+        db.createStream(this);
+
+        if (autoStart) {
+            db.deleteOrphanedTags(this.guildId);
+        } else {
+            db.updateOrphanedTags(this.guildId, this.streamId);
+        }
+    }
+
+    async createTag(message, content) {
+        const tag = this.createProxy({
             authorId: message.author.id,
             messageId: message.id,
             message: content,
-            time: new Date(message.createdAt.getTime() - (15 * 1000)),
-            stars: 0
-        };
-        await message.react('⭐');
+            createdAt: message.createdAt,
+            time: new Date(message.createdAt.getTime() - (20 * 1000)),
+            stars: 0,
+            guildId: this.guildId,
+            streamId: this.streamId,
+            deleted: false
+        });
+        db.createTag(tag);
+        await message.react('👍');
         await message.react('❌');
         this.tags.push(tag);
-    },
+    }
 
-    adjustTime: function(message, offset) {
+    createProxy(tag) {
+        return new Proxy(tag, {
+            set(target, name, value) {
+                if (name in target) {
+                    target[name] = value;
+                    db.updateTag(target.messageId, name, value);
+                    return true;
+                }
+                return false;
+            }
+        });
+    }
+
+    adjustTime(message, offset) {
         const tag = this.tags.findLast(t => t.authorId === message.author.id);
         if (tag && offset) {
             offset = parseInt(offset.trim());
@@ -79,92 +160,167 @@ const tagger = {
             tag.time = new Date(tag.time.getTime() + (offset * 1000));
             message.react('👍');
         }
-    },
+    }
 
-    addStar: function(messageId) {
+    addStar(messageId) {
         this.getTagByMessageId(messageId).stars++;
-    },
+    }
 
-    removeStar: function(messageId) {
+    removeStar(messageId) {
         this.getTagByMessageId(messageId).stars--;
-    },
+    }
 
-    editTag: function(messageId, newMessage) {
+    editTag(messageId, newMessage) {
         this.getTagByMessageId(messageId).message = newMessage;
-    },
+    }
 
-    deleteTag: function(messageId, userId) {
+    deleteTag(messageId, userId) {
         const index = this.tags.findLastIndex(t => t.messageId === messageId);
-        if (index >= 0 && (!userId || this.tags[index].authorId === userId)) {
-            this.tags.splice(index, 1);
+        if (index >= 0) {
+            if (!userId) {
+                db.deleteTag(messageId);
+                this.tags.splice(index, 1);
+            } else if (this.tags[index].authorId === userId) {
+                this.tags[index].deleted = true;
+            }
         }
-    },
+    }
 
-    getTagByMessageId: function(messageId) {
+    undeleteTag(messageId, userId) {
+        const tag = this.getTagByMessageId(messageId);
+        if (tag.authorId === userId) {
+            tag.deleted = false;
+        }
+    }
+
+    getTagByMessageId(messageId) {
         return this.tags.findLast(t => t.messageId === messageId) || {};
-    },
+    }
 
-    deleteTags: function() {
+    deleteTags() {
         this.tags = [];
-        this.streamStart = null;
-        this.streamEnd = null;
+        db.deleteMarkedTags(this.guildId);
+        this.deleteStream();
+        return {
+            color: 0x00ff99,
+            description: 'Tags deleted'
+        };
+    }
+
+    deleteStream() {
         this.streamId = null;
         this.streamUrl = null;
-    },
+        this.streamStart = null;
+        this.streamEnd = null;
+    }
 
-    listTags: function(userId) {
-        let tagList = userId ?
-            this.tags.filter(tag => tag.authorId === userId) :
-            this.tags;
+    async listTags(args) {
+        const { vodLink, userId } = args || {};
+        const { stream, tags } = await this.getStreamAndTags(vodLink);
+        let tagList = tags.filter(tag => !tag.deleted);
+
+        if (!stream || tagList.length === 0) {
+            return {
+                color: 0xff4444,
+                description: 'No tags found'
+            };
+        }
+
+        if (userId) {
+            tagList = tagList.filter(tag => tag.authorId === userId);
+        }
         tagList = tagList.sort((a, b) => a.time - b.time);
         
-        const minutes = this.calculateMinutes();
-        let tagInfo = `Stream start: <t:${parseInt(this.streamStart / 1000, 10)}:f>, `;
-        tagInfo += `${tagList.length} tags (${(tagList.length / minutes).toPrecision(2)}/min)\n`;
+        const minutes = this.calculateMinutes(stream.streamStart, stream.streamEnd);
+        let tagInfo = `Stream start: <t:${parseInt(stream.streamStart / 1000, 10)}:f>, `;
+        tagInfo += `${tagList.length} tags (${(tagList.length / minutes).toFixed(2)}/min)\n`;
 
-        let firstEmbed = true;
+        let firstEmbed = true,
+            length = 0,
+            lines = [];
         const embeds = [];
         
-        for (let i = 0; i < tagList.length; i += this.tagsPerEmbed) {
-            const embed = new EmbedBuilder();
-            let description = tagList.slice(i, i + this.tagsPerEmbed).map(tag => this.printTag(tag)).join('');
+        for (let i = 0; i < tagList.length; i++) {
+            const line = this.printTag(tagList[i], stream.streamUrl, stream.streamStart);
+            lines.push(line);
+            length += line.length;
 
-            if (firstEmbed) {
-                description = tagInfo + description;
-                embed.setTitle('Tags');
-                firstEmbed = false;
+            // make sure the description is under 4096
+            if (lines.length === this.tagsPerEmbed ||
+                i === tagList.length-1 ||
+                length + tagList[i+1].message.length > 3900
+            ) {
+                const embed = {};
+                let description = lines.join('');
+                if (firstEmbed) {
+                    description = tagInfo + description;
+                    embed.title = 'Tags';
+                    firstEmbed = false;
+                }
+                embed.description = description;
+                embeds.push(embed);
+                length = 0;
+                lines = [];
             }
-            
-            embed.setDescription(description)
-            embeds.push(embed);
         }
 
         return embeds;
-    },
+    }
 
-    printTag: function(tag) {
+    async getStreamAndTags(vodLink) {
+        let stream, tags = [];
+        if (vodLink) {
+            const video = await this.getVideo(vodLink.trim());
+            if (video?.streamId) {
+                const dbStream = db.getStreamById(this.guildId, video.streamId);
+                if (dbStream) {
+                    stream = dbStream;
+                    if (!stream.streamEnd && video.duration) {
+                        stream.streamEnd = this.createStreamEnd(stream.streamStart, video.duration);
+                        db.setStreamEndTime(stream.streamId, stream.streamEnd);
+                    }
+                    tags = db.getTags(this.guildId, video.streamId);
+                }
+            }
+        } else {
+            stream = { 
+                streamStart: this.streamStart,
+                streamEnd: this.streamEnd,
+                streamUrl: this.streamUrl
+            };
+            tags = this.tags;
+        }
+
+        return { stream, tags };
+    }
+
+    getStreamUrl() {
+        return this.streamUrl;
+    }
+
+    printTag(tag, url, streamStart) {
         let text = tag.message;
         if (tag.stars > 0) {
             text += ` (${tag.stars})`;
         }
-        const offset = this.calculateOffset(tag.time);
-        if (this.streamUrl) {
-            text += ` [${offset}](${this.streamUrl}?t=${offset})\n`;
+        if (url) {
+            const offset = this.calculateOffset(tag.time, streamStart);
+            text += ` [${offset}](${url}?t=${offset})\n`;
         } else {
-            text += ` ${offset}\n`;
+            text += ` ${tag.time.getTime()}\n`;
         }
         return text;
-    },
+    }
 
-    calculateMinutes: function() {
-        const start = this.streamStart;
-        const end = this.streamEnd || new Date();
+    calculateMinutes(streamStart, streamEnd) {
+        const start = streamStart;
+        const end = streamEnd || new Date();
         const diffMs = end - start;
         return Math.floor(diffMs / 60000);
-    },
+    }
 
-    calculateOffset: function(time) {
-        const diffMs = time - this.streamStart;
+    calculateOffset(time, streamStart) {
+        const diffMs = time - streamStart;
         const sec = 1000, min = sec * 60, hr = min * 60;
         const diffSec = Math.floor((diffMs % min) / sec);
         const diffMin = Math.floor((diffMs % hr) / min);
@@ -179,6 +335,22 @@ const tagger = {
         timeString += `${diffSec}s`;
         return timeString;
     }
+
+    createStreamEnd(start, duration) {
+        const durationMs = this.isoDurationToMs(duration);
+        return new Date(start.getTime() + durationMs);
+    }
+
+    isoDurationToMs(isoString) {
+        const parts = isoString.match(/(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?/i);
+        let seconds = 0;
+        if (parts) {
+            if (parts[1]) seconds += parseInt(parts[1], 10) * 60 * 60;
+            if (parts[2]) seconds += parseInt(parts[2], 10) * 60;
+            if (parts[3]) seconds += parseInt(parts[3], 10);
+        }
+        return seconds * 1000;
+    }
 };
 
-export default tagger;
+export default Tagger;

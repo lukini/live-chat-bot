@@ -1,0 +1,10 @@
+{
+    "guildId": "",
+    "liveChatChannel": "",
+    "outputChannel": "",
+    "twitchUserId": "",
+    "unlockMessage": "",
+    "lockMessage": "",
+    "unlockChannel": 0,
+    "lockChannel": 0
+}
