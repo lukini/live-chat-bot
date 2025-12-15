@@ -46,43 +46,61 @@ const db = {
     },
 
     createStream: function(stream) {
-        database.prepare('INSERT INTO Streams VALUES (?, ?, ?)').run(
+        database.prepare('INSERT OR IGNORE INTO Streams VALUES (?, ?, ?, ?, ?)').run(
+            stream.streamId,
             stream.streamStart.getTime(),
+            stream.streamEnd ? stream.streamEnd.getTime() : null,
             stream.streamUrl,
             stream.guildId
         );
     },
 
-    getStream(guildId) {
-        const stream = database.prepare('SELECT * FROM Streams WHERE guildId = ?').get(guildId) || {};
-        if (stream.streamStart) {
-            stream.streamStart = new Date(stream.streamStart);
+    getLatestStream(guildId) {
+        const stream = database.prepare('SELECT * FROM Streams WHERE guildId = ? ORDER BY streamStart DESC LIMIT 1').get(guildId);
+        if (stream) {
+            stream.streamStart = stream.streamStart ? new Date(stream.streamStart) : null;
+            stream.streamEnd = stream.streamEnd ? new Date(stream.streamEnd) : null;
         }
         return stream;
     },
 
-    deleteStream: function(guildId) {
-        database.prepare('DELETE FROM Streams WHERE guildId = ?').run(guildId);
+    getStreamById(guildId, streamId) {
+        const stream = database.prepare('SELECT * FROM Streams WHERE (guildId = ? AND streamId = ?)').get(guildId, streamId);
+        if (stream) {
+            stream.streamStart = stream.streamStart ? new Date(stream.streamStart) : null;
+            stream.streamEnd = stream.streamEnd ? new Date(stream.streamEnd) : null;
+        }
+        return stream;
+    },
+
+    setStreamEndTime: function(streamId, value) {
+        database.prepare('UPDATE Streams SET streamEnd = ? WHERE streamId = ?').run(value.getTime(), streamId);
+    },
+
+    deleteStream: function(guildId, streamId) {
+        database.prepare('DELETE FROM Streams WHERE (guildId = ? AND streamId = ?)').run(guildId, streamId);
     },
 
     createTag: function(tag) {
         try {
-            database.prepare('INSERT INTO Tags VALUES (?, ?, ?, ?, ?, ?, ?)').run(
+            database.prepare('INSERT INTO Tags VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)').run(
                 tag.authorId,
                 tag.messageId,
                 tag.message,
                 tag.time.getTime(),
                 tag.createdAt.getTime(),
                 tag.stars,
-                tag.guildId
+                tag.guildId,
+                tag.streamId,
+                0
             );
         } catch (e) {
             console.error('Unable to create tag:', tag, e);
         }
     },
 
-    getTags(guildId) {
-        const tags = database.prepare('SELECT * FROM Tags WHERE guildId = ? ORDER BY createdAt ASC').all(guildId);
+    getTags(guildId, streamId) {
+        const tags = database.prepare('SELECT * FROM Tags WHERE (guildId = ? AND streamId = ?) ORDER BY createdAt ASC').all(guildId, streamId);
         for (const tag of tags) {
             tag.time = new Date(tag.time);
             tag.createdAt = new Date(tag.createdAt);
@@ -94,6 +112,8 @@ const db = {
         try {
             if (value instanceof Date) {
                 value = value.getTime();
+            } else if (typeof value === 'boolean') {
+                value = value ? 1 : 0;
             }
             database.prepare(`UPDATE Tags SET ${column} = ? WHERE messageId = ?`).run(value, messageId);
         } catch (e) {
@@ -101,8 +121,32 @@ const db = {
         }
     },
 
+    moveTagsToNewStream: function(guildId, oldStreamId, streamId) {
+        try {
+            database.prepare('UPDATE Tags SET streamId = ? WHERE (guildId = ? AND streamId = ?)').run(streamId, guildId, oldStreamId);
+        } catch (e) {
+            console.error('Unable to update tags:', guildId, oldStreamId, streamId, e);
+        }
+    },
+
+    updateOrphanedTags: function(guildId, streamId) {
+        try {
+            database.prepare('UPDATE Tags SET streamId = ? WHERE (guildId = ? AND streamId IS NULL)').run(streamId, guildId);
+        } catch (e) {
+            console.error('Unable to update tags:', guildId, streamId, e);
+        }
+    },
+
+    deleteOrphanedTags: function(guildId) {
+        database.prepare('DELETE FROM Tags WHERE (guildId = ? AND streamId IS NULL)').run(guildId);
+    },
+
     deleteTag: function(messageId) {
         database.prepare('DELETE FROM Tags WHERE messageId = ?').run(messageId);
+    },
+
+    deleteMarkedTags: function(guildId) {
+        database.prepare('DELETE FROM Tags WHERE (guildId = ? AND deleted = 1)').run(guildId);
     },
 
     deleteTags: function(guildId) {
@@ -127,9 +171,12 @@ database.exec(`
 
 database.exec(`
     CREATE TABLE IF NOT EXISTS Streams(
+        streamId TEXT,
         streamStart INTEGER,
+        streamEnd INTEGER,
         streamUrl TEXT,
         guildId TEXT,
+        UNIQUE(guildId, streamId),
         FOREIGN KEY(guildId)
             REFERENCES Servers(guildId)
             ON DELETE CASCADE
@@ -145,6 +192,8 @@ database.exec(`
         createdAt INTEGER,
         stars INTEGER,
         guildId TEXT,
+        streamId TEXT,
+        deleted INTEGER,
         FOREIGN KEY(guildId)
             REFERENCES Servers(guildId)
             ON DELETE CASCADE

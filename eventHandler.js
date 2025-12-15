@@ -56,7 +56,7 @@ class EventHandler {
             // mod commands
             if (command.startsWith('l?') && message.member.permissions.has(PermissionsBitField.Flags.ManageMessages)) {
                 command = command.substring(2);
-                response = server.processCommandElevated(command, args);
+                response = server.processCommandElevated(message, command, args);
             } else if (message.channel.id === server.config.liveChatChannel) {
                 // regular commands
                 if (command.startsWith('!')) {
@@ -134,7 +134,7 @@ class EventHandler {
         
         if (reaction.message.content.startsWith('`')) {
             switch (reaction.emoji.name) {
-                case '⭐':
+                case '👍':
                     server.tagger.addStar(reaction.message.id);
                     break;
                 case '❌':
@@ -153,8 +153,11 @@ class EventHandler {
         
         if (reaction.message.content.startsWith('`')) {
             switch (reaction.emoji.name) {
-                case '⭐':
+                case '👍':
                     server.tagger.removeStar(reaction.message.id);
+                    break;
+                case '❌':
+                    server.tagger.undeleteTag(reaction.message.id, user.id);
                     break;
                 default:
                     break;

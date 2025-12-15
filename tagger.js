@@ -1,7 +1,7 @@
 import db from './db.js';
 
 class Tagger {
-    tagsPerEmbed = 22;
+    tagsPerEmbed = 25;
     apiClient = null;
 
     tags = [];
@@ -14,46 +14,60 @@ class Tagger {
     constructor(guildId, apiClient) {
         this.guildId = guildId;
         this.apiClient = apiClient;
-        this.tags = db.getTags(guildId).map(tag => this.createProxy(tag));
-        const config = db.getStream(guildId);
-        this.streamStart = config.streamStart;
-        this.streamUrl = config.streamUrl;
+        const config = db.getLatestStream(guildId);
+        // stream is live if end time isn't set
+        if (config && !config.streamEnd) {
+            this.streamId = config.streamId;
+            this.streamStart = config.streamStart;
+            this.streamEnd = config.streamEnd;
+            this.streamUrl = config.streamUrl;
+            this.tags = db.getTags(guildId, this.streamId).map(tag => this.createProxy(tag));
+        }
     }
 
     startStream(startEvent) {
         this.deleteTags();
         this.streamStart = startEvent.startDate;
         this.streamId = startEvent.id;
+        this.streamUrl = null;
+        this.streamEnd = null;
 
         setTimeout(() => {
             this.checkForVod(startEvent.broadcasterId, 0);
         }, 30 * 1000); // wait 30 seconds
     }
 
+    endStream() {
+        this.streamEnd = new Date();
+        db.setStreamEndTime(this.streamId, this.streamEnd);
+        this.streamId = null;
+    }
+
+    startStreamManually(url) {
+        this.deleteTags();
+        this.setStreamUrl(url);
+    }
+
     async setStreamUrl(url) {
-        try {
-            const videoId = url.split('/').pop().split('?')[0];
-            const video = await this.apiClient.videos.getVideoById(videoId);
-            if (video?.creationDate) {
-                // delete existing stream if it exists
-                if (this.streamUrl) {
-                    db.deleteStream(this.guildId);
-                }
-                this.streamId = video.streamId;
-                const baseUrl = url.split('?')[0];
-                this.createStream(baseUrl, video.creationDate);
-                return {
-                    color: 0x00ff99,
-                    description: `Stream ID: ${this.streamId}, Start: <t:${parseInt(this.streamStart / 1000, 10)}:f>`
-                };
+        const video = await this.getVideo(url);
+
+        if (video?.streamId) {
+            // handle existing stream if it exists
+            if (this.streamId) {
+                db.moveTagsToNewStream(this.guildId, this.streamId, video.streamId);
+                db.deleteStream(this.guildId, this.streamId);
             }
-        } catch (e) {
-            console.error(`[${this.guildId}] Error getting video:`, e);
+            this.createStream(video);
+            return {
+                color: 0x00ff99,
+                description: `Stream ID: ${this.streamId}, Start: <t:${parseInt(this.streamStart / 1000, 10)}:f>`
+            };
+        } else {
+            return {
+                color: 0xff4444,
+                description: 'Error setting stream URL'
+            };
         }
-        return {
-            color: 0xff4444,
-            description: 'Error setting stream URL'
-        };
     }
 
     async checkForVod(twitchUserId, retryCount) {
@@ -67,7 +81,7 @@ class Tagger {
                 console.log(`[${this.guildId}] Latest video ID:`, latestVideo.url);
                 if (latestVideo.streamId === this.streamId) {
                     console.log('Matches current stream');
-                    this.createStream(latestVideo.url, latestVideo.creationDate);
+                    this.createStream(latestVideo, true);
                     return;
                 }
             }
@@ -82,10 +96,26 @@ class Tagger {
         }
     }
 
-    createStream(url, date) {
-        this.streamUrl = url;
-        this.streamStart = date;
+    async getVideo(url) {
+        try {
+            const videoId = url.split('/').pop().split('?')[0];
+            return await this.apiClient.videos.getVideoById(videoId);
+        } catch (e) {
+            console.error(`[${this.guildId}] Error getting video:`, e);
+        }
+    }
+
+    createStream(video, autoStart) {
+        this.streamId = video.streamId;
+        this.streamUrl = video.url;
+        this.streamStart = video.creationDate;
         db.createStream(this);
+
+        if (autoStart) {
+            db.deleteOrphanedTags(this.guildId);
+        } else {
+            db.updateOrphanedTags(this.guildId, this.streamId);
+        }
     }
 
     async createTag(message, content) {
@@ -96,10 +126,12 @@ class Tagger {
             createdAt: message.createdAt,
             time: new Date(message.createdAt.getTime() - (20 * 1000)),
             stars: 0,
-            guildId: this.guildId
+            guildId: this.guildId,
+            streamId: this.streamId,
+            deleted: false
         });
         db.createTag(tag);
-        await message.react('⭐');
+        await message.react('👍');
         await message.react('❌');
         this.tags.push(tag);
     }
@@ -144,9 +176,20 @@ class Tagger {
 
     deleteTag(messageId, userId) {
         const index = this.tags.findLastIndex(t => t.messageId === messageId);
-        if (index >= 0 && (!userId || this.tags[index].authorId === userId)) {
-            db.deleteTag(messageId);
-            this.tags.splice(index, 1);
+        if (index >= 0) {
+            if (!userId) {
+                db.deleteTag(messageId);
+                this.tags.splice(index, 1);
+            } else if (this.tags[index].authorId === userId) {
+                this.tags[index].deleted = true;
+            }
+        }
+    }
+
+    undeleteTag(messageId, userId) {
+        const tag = this.getTagByMessageId(messageId);
+        if (tag.authorId === userId) {
+            tag.deleted = false;
         }
     }
 
@@ -156,9 +199,7 @@ class Tagger {
 
     deleteTags() {
         this.tags = [];
-        this.streamEnd = null;
-        this.streamId = null;
-        db.deleteTags(this.guildId);
+        db.deleteMarkedTags(this.guildId);
         this.deleteStream();
         return {
             color: 0x00ff99,
@@ -167,20 +208,32 @@ class Tagger {
     }
 
     deleteStream() {
+        this.streamId = null;
         this.streamUrl = null;
         this.streamStart = null;
-        db.deleteStream(this.guildId);
+        this.streamEnd = null;
     }
 
-    listTags(userId) {
-        let tagList = userId ?
-            this.tags.filter(tag => tag.authorId === userId) :
-            this.tags;
+    async listTags(args) {
+        const { vodLink, userId } = args || {};
+        const { stream, tags } = await this.getStreamAndTags(vodLink);
+        let tagList = tags.filter(tag => !tag.deleted);
+
+        if (!stream || tagList.length === 0) {
+            return {
+                color: 0xff4444,
+                description: 'No tags found'
+            };
+        }
+
+        if (userId) {
+            tagList = tagList.filter(tag => tag.authorId === userId);
+        }
         tagList = tagList.sort((a, b) => a.time - b.time);
         
-        const minutes = this.calculateMinutes();
-        let tagInfo = `Stream start: <t:${parseInt(this.streamStart / 1000, 10)}:f>, `;
-        tagInfo += `${tagList.length} tags (${(tagList.length / minutes).toPrecision(2)}/min)\n`;
+        const minutes = this.calculateMinutes(stream.streamStart, stream.streamEnd);
+        let tagInfo = `Stream start: <t:${parseInt(stream.streamStart / 1000, 10)}:f>, `;
+        tagInfo += `${tagList.length} tags (${(tagList.length / minutes).toFixed(2)}/min)\n`;
 
         let firstEmbed = true,
             length = 0,
@@ -188,7 +241,7 @@ class Tagger {
         const embeds = [];
         
         for (let i = 0; i < tagList.length; i++) {
-            const line = this.printTag(tagList[i]);
+            const line = this.printTag(tagList[i], stream.streamUrl, stream.streamStart);
             lines.push(line);
             length += line.length;
 
@@ -214,33 +267,60 @@ class Tagger {
         return embeds;
     }
 
+    async getStreamAndTags(vodLink) {
+        let stream, tags = [];
+        if (vodLink) {
+            const video = await this.getVideo(vodLink.trim());
+            if (video?.streamId) {
+                const dbStream = db.getStreamById(this.guildId, video.streamId);
+                if (dbStream) {
+                    stream = dbStream;
+                    if (!stream.streamEnd && video.duration) {
+                        stream.streamEnd = this.createStreamEnd(stream.streamStart, video.duration);
+                        db.setStreamEndTime(stream.streamId, stream.streamEnd);
+                    }
+                    tags = db.getTags(this.guildId, video.streamId);
+                }
+            }
+        } else {
+            stream = { 
+                streamStart: this.streamStart,
+                streamEnd: this.streamEnd,
+                streamUrl: this.streamUrl
+            };
+            tags = this.tags;
+        }
+
+        return { stream, tags };
+    }
+
     getStreamUrl() {
         return this.streamUrl;
     }
 
-    printTag(tag) {
+    printTag(tag, url, streamStart) {
         let text = tag.message;
         if (tag.stars > 0) {
             text += ` (${tag.stars})`;
         }
-        const offset = this.calculateOffset(tag.time);
-        if (this.streamUrl) {
-            text += ` [${offset}](${this.streamUrl}?t=${offset})\n`;
+        if (url) {
+            const offset = this.calculateOffset(tag.time, streamStart);
+            text += ` [${offset}](${url}?t=${offset})\n`;
         } else {
-            text += ` ${offset}\n`;
+            text += ` ${tag.time.getTime()}\n`;
         }
         return text;
     }
 
-    calculateMinutes() {
-        const start = this.streamStart;
-        const end = this.streamEnd || new Date();
+    calculateMinutes(streamStart, streamEnd) {
+        const start = streamStart;
+        const end = streamEnd || new Date();
         const diffMs = end - start;
         return Math.floor(diffMs / 60000);
     }
 
-    calculateOffset(time) {
-        const diffMs = time - this.streamStart;
+    calculateOffset(time, streamStart) {
+        const diffMs = time - streamStart;
         const sec = 1000, min = sec * 60, hr = min * 60;
         const diffSec = Math.floor((diffMs % min) / sec);
         const diffMin = Math.floor((diffMs % hr) / min);
@@ -254,6 +334,22 @@ class Tagger {
         }
         timeString += `${diffSec}s`;
         return timeString;
+    }
+
+    createStreamEnd(start, duration) {
+        const durationMs = this.isoDurationToMs(duration);
+        return new Date(start.getTime() + durationMs);
+    }
+
+    isoDurationToMs(isoString) {
+        const parts = isoString.match(/(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?/i);
+        let seconds = 0;
+        if (parts) {
+            if (parts[1]) seconds += parseInt(parts[1], 10) * 60 * 60;
+            if (parts[2]) seconds += parseInt(parts[2], 10) * 60;
+            if (parts[3]) seconds += parseInt(parts[3], 10);
+        }
+        return seconds * 1000;
     }
 };
 

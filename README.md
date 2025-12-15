@@ -36,5 +36,6 @@ node app.js --config path/to/config.json
 - l?status - Show current status of the bot's config
 - l?checkurl - Check the current stream url
 - l?tags - List all tags for the stream
-- l?deletetags - Delete the current tags
-- l?stream - Set the stream url (use only if the stream didn't get set)
+- l?cleartags - Clear the current tags
+- l?startstream - Manually start stream. For use when auto open is off. Takes a VOD url
+- l?stream - Set the VOD url (use only if the stream didn't get set automatically)

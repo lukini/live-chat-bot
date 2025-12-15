@@ -32,48 +32,58 @@ class Server {
     }
 
     async streamStartHandler(e) {
-        console.log(`[${this.guildId}] Stream started at`, e.startDate);
-        this.tagger.startStream(e);
+        try {
+            console.log(`[${this.guildId}] Stream started at`, e.startDate);
+            this.tagger.startStream(e);
 
-        if (this.config.unlockChannel && this.config.liveChatChannel) {
-            const channel = this.client.channels.cache.get(this.config.liveChatChannel);
-            channel.send({ embeds: [{
-                color: 0x00ff99,
-                title: 'Channel Unlocked',
-                description: `🔓 ${this.config.unlockMessage}`
-            }] });
-            channel.permissionOverwrites.edit(this.guildId, { SendMessages: null });
+            if (this.config.unlockChannel && this.config.liveChatChannel) {
+                const channel = this.client.channels.cache.get(this.config.liveChatChannel);
+                channel.send({ embeds: [{
+                    color: 0x00ff99,
+                    title: 'Channel Unlocked',
+                    description: `🔓 ${this.config.unlockMessage}`
+                }] });
+                channel.permissionOverwrites.edit(this.guildId, { SendMessages: null });
+            }
+        } catch (e) {
+            console.error(`[${this.guildId}] Error on stream start:`, e);
         }
     }
 
     async streamEndHandler() {
-        console.log(`[${this.guildId}] Stream ended at`, new Date());
-        this.tagger.streamEnd = new Date();
+        try {
+            console.log(`[${this.guildId}] Stream ended at`, new Date());
+            this.tagger.endStream();
 
-        if (this.config.lockChannel && this.config.liveChatChannel) {
-            const channel = this.client.channels.cache.get(this.config.liveChatChannel);
-            channel.permissionOverwrites.edit(this.guildId, { SendMessages: false });
-            channel.send({ embeds: [{
-                color: 0xff4444,
-                title: 'Channel Locked',
-                description: `🔒 ${this.config.lockMessage}`
-            }] });
-        }
-        
-        if (this.tagger.streamUrl && this.config.outputChannel) {
-            const tags = this.tagger.listTags();
-            const channel = this.client.channels.cache.get(this.config.outputChannel);
-            for (const embed of tags) {
-                await channel.send({ embeds: [embed] });
+            if (this.config.lockChannel && this.config.liveChatChannel) {
+                const channel = this.client.channels.cache.get(this.config.liveChatChannel);
+                channel.permissionOverwrites.edit(this.guildId, { SendMessages: false });
+                channel.send({ embeds: [{
+                    color: 0xff4444,
+                    title: 'Channel Locked',
+                    description: `🔒 ${this.config.lockMessage}`
+                }] });
             }
-            this.tagger.deleteTags();
+            
+            if (this.tagger.streamUrl && this.config.outputChannel) {
+                const tags = await this.tagger.listTags();
+                if (Array.isArray(tags)) {
+                    const channel = this.client.channels.cache.get(this.config.outputChannel);
+                    for (const embed of tags) {
+                        await channel.send({ embeds: [embed] });
+                    }
+                }
+                this.tagger.deleteTags();
+            }
+        } catch (e) {
+            console.error(`[${this.guildId}] Error on stream end:`, e);
         }
     }
 
     processCommand(message, command, args) {
         switch (command) {
             case 'tags':
-                return this.tagger.listTags(message.author.id);
+                return this.tagger.listTags({ userId: message.author.id });
             case 'adjust':
                 this.tagger.adjustTime(message, args);
                 break;
@@ -82,7 +92,7 @@ class Server {
         }
     }
 
-    processCommandElevated(command, args) {
+    processCommandElevated(message, command, args) {
         switch (command) {
             case 'enableopen':
                 return this.setUnlockChannel(true, args);
@@ -107,12 +117,16 @@ class Server {
             case 'checkurl':
                 return this.tagger.getStreamUrl();
             case 'tags':
-                return this.tagger.listTags();
-            case 'deletetags':
+                return this.tagger.listTags({ vodLink: args });
+            case 'cleartags':
                 return this.tagger.deleteTags();
+            case 'startstream':
+                return this.tagger.startStreamManually(args);
             case 'stream':
             case 'setstream':
                 return this.tagger.setStreamUrl(args);
+            case 'test':
+                return this.runTest(message);
             default:
                 break;
         }
@@ -241,6 +255,48 @@ class Server {
     removeSubscriptions() {
         this.subs.forEach(s => s.stop());
         this.subs = [];
+    }
+
+    async runTest(message) {
+        const channel = this.client.channels.cache.get(message.channel.id);
+        let response = '';
+
+        try {
+            const message = await channel.send('Test message');
+            await message.delete();
+        } catch (e) {
+            console.error(`[${this.guildId}] Send message failed:`, e);
+            return;
+        }
+
+        try {
+            await message.react('👍');
+        } catch (e) {
+            console.error(`[${this.guildId}] Reaction failed:`, e);
+            response += 'Couldn\'t react to message\n';
+        }
+        
+        try {
+            const message = await channel.send({ embeds: [this.createEmbed(true, 'Test embed')] });
+            await message.delete();
+        } catch (e) {
+            console.error(`[${this.guildId}] Embed failed:`, e);
+            response += 'Couldn\'t send embed message\n';
+        }
+
+        try {
+            channel.permissionOverwrites.edit(this.guildId, { SendMessages: false });
+            channel.permissionOverwrites.edit(this.guildId, { SendMessages: null });
+        } catch (e) {
+            console.error(`[${this.guildId}] Permission edit failed:`, e);
+            response += 'Couldn\'t edit channel permissions\n';
+        }
+
+        if (response) {
+            return response;
+        }
+
+        return this.createEmbed(true, 'Test succeeded');
     }
 }
 
