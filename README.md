@@ -6,20 +6,6 @@
 - Prints out tags after stream
 - Stores past stream tags
 
-# Prerequisites
-[Node.js](https://nodejs.org/en/download) and [ngrok](https://ngrok.com/download) are currently required to run locally. Get your ngrok auth token [here](https://dashboard.ngrok.com/get-started/your-authtoken) and your register the app with twitch [following these steps](https://dev.twitch.tv/docs/authentication/register-app) to get your client id/secret.
-
-# Install
-git clone the repository and run this from the folder:
-```
-npm install
-```
-
-Update the appConfig.json file with all your values from above along with your discord bot's token.  Alternately, you can pass in your own file location with `--config`:
-```
-node app.js --config path/to/config.json
-```
-
 # Commands
 - !t / !tag / ` - Start a message with this to add a tag for the stream
 - !adjust - Adjust the time (in seconds) for the last tag the current user created
@@ -42,3 +28,17 @@ node app.js --config path/to/config.json
 - l?startstream - Manually start stream. Only works when chat isn't open. Sets the VOD url given to it.
 - l?setstream - Set the VOD url. Only use if the VOD didn't get found for some reason.
 - l?test - Tests if the bot has the permissions needed for the current channel. Output indicates if it worked. No output means it can't send messages.
+
+# Prerequisites
+[Node.js](https://nodejs.org/en/download) and [ngrok](https://ngrok.com/download) are currently required to run locally. Get your ngrok auth token [here](https://dashboard.ngrok.com/get-started/your-authtoken) and your register the app with twitch [following these steps](https://dev.twitch.tv/docs/authentication/register-app) to get your client id/secret.
+
+# Install
+git clone the repository and run this from the folder:
+```
+npm install
+```
+
+Update the appConfig.json file with all your values from above along with your discord bot's token.  Alternately, you can pass in your own file location with `--config`:
+```
+node app.js --config path/to/config.json
+```
