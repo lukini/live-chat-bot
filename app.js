@@ -67,6 +67,8 @@ client.once(Events.ClientReady, async () => {
     client.on(Events.MessageDelete, (message) => { eventHandler.handleMessageDeletion(message); });
     client.on(Events.MessageReactionAdd, (reaction, user) => { eventHandler.handleReactionAdd(reaction, user); });
     client.on(Events.MessageReactionRemove, (reaction, user) => { eventHandler.handleReactionRemove(reaction, user); });
+    process.on('SIGTERM', eventHandler.handleProcessEnd);
+    process.on('SIGINT', eventHandler.handleProcessEnd);
 
     listener.start();
 });
@@ -78,7 +80,5 @@ function loadConfig(args) {
     }
     return config;
 }
-
-//TODO: kill subs on process end?
 
 client.login(appConfig.token);

@@ -43,6 +43,11 @@ class EventHandler {
         return server;
     }
 
+    handleProcessEnd() {
+        this.servers.forEach(s => s.removeSubscriptions());
+        process.exit(0);
+    }
+
     async handleNewMessage(message) {
         if (message.author.bot) return;
         const server = this.getServer(message);
