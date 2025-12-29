@@ -1,3 +1,4 @@
+import { PermissionsBitField } from 'discord.js';
 import Tagger from './tagger.js';
 import db from './db.js';
 
@@ -31,49 +32,47 @@ class Server {
         this.addSubscriptions();
     }
 
-    async streamStartHandler(e) {
+    async startStream(e) {
         try {
-            console.log(`[${this.guildId}] Stream started at`, e.startDate);
-            this.tagger.startStream(e);
+            if (this.config.liveChatChannel) {
+                // if chat is already open, do nothing
+                if (this.isChatOpen()) {
+                    console.log(`[${this.guildId}] Chat already open, skipping stream start`);
+                    return;
+                }
 
-            if (this.config.unlockChannel && this.config.liveChatChannel) {
-                const channel = this.client.channels.cache.get(this.config.liveChatChannel);
-                channel.send({ embeds: [{
-                    color: 0x00ff99,
-                    title: 'Channel Unlocked',
-                    description: `🔓 ${this.config.unlockMessage}`
-                }] });
-                channel.permissionOverwrites.edit(this.guildId, { SendMessages: null });
+                console.log(`[${this.guildId}] Stream started at`, e.startDate);
+                this.tagger.startStream(e);
+
+                if (this.config.unlockChannel) {
+                    this.openChatChannel();
+                }
             }
         } catch (e) {
             console.error(`[${this.guildId}] Error on stream start:`, e);
         }
     }
 
-    async streamEndHandler() {
+    async endStream() {
         try {
-            console.log(`[${this.guildId}] Stream ended at`, new Date());
-            this.tagger.endStream();
+            if (this.config.liveChatChannel) {
+                console.log(`[${this.guildId}] Stream ended at`, new Date());
+                this.tagger.endStream();
 
-            if (this.config.lockChannel && this.config.liveChatChannel) {
-                const channel = this.client.channels.cache.get(this.config.liveChatChannel);
-                channel.permissionOverwrites.edit(this.guildId, { SendMessages: false });
-                channel.send({ embeds: [{
-                    color: 0xff4444,
-                    title: 'Channel Locked',
-                    description: `🔒 ${this.config.lockMessage}`
-                }] });
-            }
-            
-            if (this.tagger.streamUrl && this.config.outputChannel) {
-                const tags = await this.tagger.listTags();
-                if (Array.isArray(tags)) {
-                    const channel = this.client.channels.cache.get(this.config.outputChannel);
-                    for (const embed of tags) {
-                        await channel.send({ embeds: [embed] });
-                    }
+                if (this.config.lockChannel) {
+                    this.closeChatChannel();
                 }
-                this.tagger.deleteTags();
+                
+                if (this.tagger.streamUrl && this.config.outputChannel) {
+                    const tags = await this.tagger.listTags();
+                    if (Array.isArray(tags)) {
+                        const channel = this.client.channels.cache.get(this.config.outputChannel);
+                        for (const embed of tags) {
+                            await channel.send({ embeds: [embed] });
+                        }
+                    }
+                    this.tagger.deleteTags();
+                }
             }
         } catch (e) {
             console.error(`[${this.guildId}] Error on stream end:`, e);
@@ -82,6 +81,9 @@ class Server {
 
     processCommand(message, command, args) {
         switch (command) {
+            case 't':
+            case 'tag':
+                return this.tagger.createTag(message, args);
             case 'tags':
                 return this.tagger.listTags({ userId: message.author.id });
             case 'adjust':
@@ -121,7 +123,9 @@ class Server {
             case 'cleartags':
                 return this.tagger.deleteTags();
             case 'startstream':
-                return this.tagger.startStreamManually(args);
+                return this.startStreamManually(args);
+            case 'endstream':
+                return this.endStream();
             case 'stream':
             case 'setstream':
                 return this.tagger.setStreamUrl(args);
@@ -132,6 +136,44 @@ class Server {
         }
     }
 
+    isChatOpen() {
+        const channel = this.client.channels.cache.get(this.config.liveChatChannel);
+        const perms = channel.permissionsFor(this.guildId);
+        return perms.has(PermissionsBitField.Flags.SendMessages);
+    }
+
+    openChatChannel() {
+        if (this.config.liveChatChannel) {
+            const channel = this.client.channels.cache.get(this.config.liveChatChannel);
+            channel.send({ embeds: [{
+                color: 0x00ff99,
+                title: 'Channel Unlocked',
+                description: `🔓 ${this.config.unlockMessage}`
+            }] });
+            channel.permissionOverwrites.edit(this.guildId, { SendMessages: null });
+        }
+    }
+
+    closeChatChannel() {
+        if (this.config.liveChatChannel) {
+            const channel = this.client.channels.cache.get(this.config.liveChatChannel);
+            channel.permissionOverwrites.edit(this.guildId, { SendMessages: false });
+            channel.send({ embeds: [{
+                color: 0xff4444,
+                title: 'Channel Locked',
+                description: `🔒 ${this.config.lockMessage}`
+            }] });
+        }
+    }
+
+    startStreamManually(url) {
+        // if chat is already open, do nothing
+        if (!this.isChatOpen()) {
+            this.openChatChannel();
+            this.tagger.deleteTags();
+            this.tagger.setStreamUrl(url);
+        }
+    }
     setUnlockChannel(open, message) {
         this.config.unlockChannel = open;
         if (message) {
@@ -247,12 +289,13 @@ class Server {
     addSubscriptions() {
         if (this.config.twitchUserId) {
             console.log(`[${this.guildId}] Subscribing to stream events for`, this.config.twitchUserId);
-            this.subs.push(this.listener.onStreamOnline(this.config.twitchUserId, (e) => this.streamStartHandler(e)));
-            this.subs.push(this.listener.onStreamOffline(this.config.twitchUserId, (e) => this.streamEndHandler(e)));
+            this.subs.push(this.listener.onStreamOnline(this.config.twitchUserId, (e) => this.startStream(e)));
+            this.subs.push(this.listener.onStreamOffline(this.config.twitchUserId, (e) => this.endStream(e)));
         }
     }
 
     removeSubscriptions() {
+        console.log(`[${this.guildId}] Removing subscriptions for`, this.config.twitchUserId);
         this.subs.forEach(s => s.stop());
         this.subs = [];
     }

@@ -43,11 +43,6 @@ class Tagger {
         this.streamId = null;
     }
 
-    startStreamManually(url) {
-        this.deleteTags();
-        this.setStreamUrl(url);
-    }
-
     async setStreamUrl(url) {
         const video = await this.getVideo(url);
 

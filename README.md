@@ -1,8 +1,10 @@
 # Features
+- Tracks stream start/end for a twitch user
 - Opens/closes #live-chat if turned on
 - Keeps track of current stream url and when it starts/ends
 - Keeps track of tags including reactions, edits, and deletions
 - Prints out tags after stream
+- Stores past stream tags
 
 # Prerequisites
 [Node.js](https://nodejs.org/en/download) and [ngrok](https://ngrok.com/download) are currently required to run locally. Get your ngrok auth token [here](https://dashboard.ngrok.com/get-started/your-authtoken) and your register the app with twitch [following these steps](https://dev.twitch.tv/docs/authentication/register-app) to get your client id/secret.
@@ -19,7 +21,7 @@ node app.js --config path/to/config.json
 ```
 
 # Commands
-- ` - Start a message with this to add a tag for the stream
+- !t / !tag / ` - Start a message with this to add a tag for the stream
 - !adjust - Adjust the time (in seconds) for the last tag the current user created
 - !tags - List current user's tags
 
@@ -35,7 +37,8 @@ node app.js --config path/to/config.json
 - l?track - Start tracking a twitch user. Takes a username or id. Removes tracking if one isn't given.
 - l?status - Show current status of the bot's config
 - l?checkurl - Check the current stream url
-- l?tags - List all tags for the stream
+- l?tags - List all tags for the stream. Provide a VOD url to see previous tags if they exist.
 - l?cleartags - Clear the current tags
-- l?startstream - Manually start stream. For use when auto open is off. Takes a VOD url
-- l?stream - Set the VOD url (use only if the stream didn't get set automatically)
+- l?startstream - Manually start stream. Only works when chat isn't open. Sets the VOD url given to it.
+- l?setstream - Set the VOD url. Only use if the VOD didn't get found for some reason.
+- l?test - Tests if the bot has the permissions needed for the current channel. Output indicates if it worked. No output means it can't send messages.
