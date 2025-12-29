@@ -229,6 +229,9 @@ class Tagger {
         const minutes = this.calculateMinutes(stream.streamStart, stream.streamEnd);
         let tagInfo = `Stream start: <t:${parseInt(stream.streamStart / 1000, 10)}:f>, `;
         tagInfo += `${tagList.length} tags (${(tagList.length / minutes).toFixed(2)}/min)\n`;
+        if (stream.streamUrl) {
+            tagInfo += `Link: ${stream.streamUrl}\n`;
+        }
 
         let firstEmbed = true,
             length = 0,
