@@ -26,7 +26,8 @@
 - l?tags - List all tags for the stream. Provide a VOD url to see previous tags if they exist.
 - l?cleartags - Clear the current tags
 - l?startstream - Manually start stream. Only works when chat isn't open. Sets the VOD url given to it.
-- l?setstream - Set the VOD url. Only use if the VOD didn't get found for some reason.
+- l?endstream - Manually end stream. Closes chat and prints tags. Use with l?startstream.
+- l?setstream - Set the VOD url. Only use if the VOD didn't get found or set for some reason.
 - l?test - Tests if the bot has the permissions needed for the current channel. Output indicates if it worked. No output means it can't send messages.
 
 # Prerequisites
