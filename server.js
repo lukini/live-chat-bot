@@ -302,37 +302,23 @@ class Server {
 
     async runTest(message) {
         const channel = this.client.channels.cache.get(message.channel.id);
+        const perms = channel.permissionsFor(this.client.user.id);
         let response = '';
 
-        try {
-            const message = await channel.send('Test message');
-            await message.delete();
-        } catch (e) {
-            console.error(`[${this.guildId}] Send message failed:`, e);
+        if (!perms.has(PermissionsBitField.Flags.SendMessages)) {
             return;
         }
 
-        try {
-            await message.react('👍');
-        } catch (e) {
-            console.error(`[${this.guildId}] Reaction failed:`, e);
-            response += 'Couldn\'t react to message\n';
+        if (!perms.has(PermissionsBitField.Flags.AddReactions)) {
+            response += 'Can\'t react to message\n';
         }
         
-        try {
-            const message = await channel.send({ embeds: [this.createEmbed(true, 'Test embed')] });
-            await message.delete();
-        } catch (e) {
-            console.error(`[${this.guildId}] Embed failed:`, e);
-            response += 'Couldn\'t send embed message\n';
+        if (!perms.has(PermissionsBitField.Flags.EmbedLinks)) {
+            response += 'Can\'t send embed message\n';
         }
 
-        try {
-            channel.permissionOverwrites.edit(this.guildId, { SendMessages: false });
-            channel.permissionOverwrites.edit(this.guildId, { SendMessages: null });
-        } catch (e) {
-            console.error(`[${this.guildId}] Permission edit failed:`, e);
-            response += 'Couldn\'t edit channel permissions\n';
+        if (!perms.has(PermissionsBitField.Flags.ManageRoles)) {
+            response += 'Can\'t edit channel permissions\n';
         }
 
         if (response) {
