@@ -44,7 +44,6 @@ class EventHandler {
     }
 
     handleProcessEnd() {
-        this.servers.forEach(s => s.removeSubscriptions());
         process.exit(0);
     }
 
