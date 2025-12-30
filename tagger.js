@@ -50,6 +50,9 @@ class Tagger {
         if (video?.streamId) {
             // handle existing stream if it exists
             if (this.streamId) {
+                if (this.streamId === video.streamId) {
+                    return utils.createEmbed(false, 'That is already the current VOD');
+                }
                 db.moveTagsToNewStream(this.guildId, this.streamId, video.streamId);
                 db.deleteStream(this.guildId, this.streamId);
             }
