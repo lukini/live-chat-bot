@@ -48,14 +48,16 @@ class Tagger {
         const video = await this.getVideo(url);
 
         if (video?.streamId) {
+            if (this.streamUrl === video.url) {
+                return utils.createEmbed(false, 'That is already the current VOD');
+            }
+
             // handle existing stream if it exists
-            if (this.streamId) {
-                if (this.streamId === video.streamId) {
-                    return utils.createEmbed(false, 'That is already the current VOD');
-                }
+            if (this.streamId && this.streamId !== video.streamId) {
                 db.moveTagsToNewStream(this.guildId, this.streamId, video.streamId);
                 db.deleteStream(this.guildId, this.streamId);
             }
+            
             this.createStream(video);
             return utils.createEmbed(true, `Stream ID: ${this.streamId}, Start: <t:${parseInt(this.streamStart / 1000, 10)}:f>`);
         } else {
