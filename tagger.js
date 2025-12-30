@@ -211,14 +211,14 @@ class Tagger {
         const { stream, tags } = await this.getStreamAndTags(vodLink);
         let tagList = tags.filter(tag => !tag.deleted);
 
-        if (!stream || tagList.length === 0) {
-            return utils.createEmbed(false, 'No tags found');
-        }
-
         if (userId && display?.trim() !== 'all') {
             tagList = tagList.filter(tag => tag.authorId === userId);
         }
         tagList = tagList.sort((a, b) => a.time - b.time);
+
+        if (!stream || tagList.length === 0) {
+            return utils.createEmbed(false, 'No tags found');
+        }
         
         const minutes = this.calculateMinutes(stream.streamStart, stream.streamEnd);
         let tagInfo = `Stream start: <t:${parseInt(stream.streamStart / 1000, 10)}:f>, `;
