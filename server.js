@@ -1,6 +1,7 @@
 import { PermissionsBitField } from 'discord.js';
 import Tagger from './tagger.js';
 import db from './db.js';
+import utils from './utils.js';
 
 class Server {
     guildId = 0;
@@ -179,7 +180,7 @@ class Server {
         if (message) {
             this.config.unlockMessage = message;
         }
-        return this.createEmbed(open, `${open ? 'Enabled' : 'Disabled'} automatic chat unlock`);
+        return utils.createEmbed(open, `${open ? 'Enabled' : 'Disabled'} automatic chat unlock`);
     }
 
     setLockChannel(close, message) {
@@ -187,17 +188,17 @@ class Server {
         if (message) {
             this.config.lockMessage = message;
         }
-        return this.createEmbed(close, `${close ? 'Enabled' : 'Disabled'} automatic chat lock`);
+        return utils.createEmbed(close, `${close ? 'Enabled' : 'Disabled'} automatic chat lock`);
     }
 
     setUnlockMessage(message) {
         this.config.unlockMessage = message;
-        return this.createEmbed(true, `Message set to ${message}`);
+        return utils.createEmbed(true, `Message set to ${message}`);
     }
 
     setLockMessage(message) {
         this.config.lockMessage = message;
-        return this.createEmbed(true, `Message set to ${message}`);
+        return utils.createEmbed(true, `Message set to ${message}`);
     }
 
     setLiveChatChannel(channel) {
@@ -220,13 +221,13 @@ class Server {
             const channel = this.client.channels.cache.get(result);
             if (channel?.guildId === this.guildId) {
                 this.config[ref] = result;
-                return this.createEmbed(true, 'Channel set');
+                return utils.createEmbed(true, 'Channel set');
             } else {
-                return this.createEmbed(false, 'Channel not found');
+                return utils.createEmbed(false, 'Channel not found');
             }
         } else {
             this.config[ref] = null;
-            return this.createEmbed(false, 'Channel removed');
+            return utils.createEmbed(false, 'Channel removed');
         }
     }
 
@@ -234,7 +235,7 @@ class Server {
         if (!user?.trim()) {
             this.config.twitchUserId = null;
             this.removeSubscriptions();
-            return this.createEmbed(true, 'Stopped tracking user');
+            return utils.createEmbed(true, 'Stopped tracking user');
         }
 
         let twitchId;
@@ -261,17 +262,10 @@ class Server {
             this.config.twitchUserId = twitchId;
             this.addSubscriptions();
 
-            return this.createEmbed(true, `Tracking user id ${twitchId}`);
+            return utils.createEmbed(true, `Tracking user id ${twitchId}`);
         }
 
-        return this.createEmbed(false, 'Twitch user not found');
-    }
-
-    createEmbed(success, message) {
-        return {
-            color: success ? 0x00ff99 : 0xff4444,
-            description: `${success ? '✅' : '❌'} ${message}`
-        };
+        return utils.createEmbed(false, 'Twitch user not found');
     }
 
     sendStatus() {
@@ -325,7 +319,7 @@ class Server {
             return response;
         }
 
-        return this.createEmbed(true, 'Test succeeded');
+        return utils.createEmbed(true, 'Test succeeded');
     }
 }
 

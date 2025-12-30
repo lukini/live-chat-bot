@@ -1,4 +1,5 @@
 import db from './db.js';
+import utils from './utils.js';
 
 class Tagger {
     tagsPerEmbed = 25;
@@ -53,15 +54,9 @@ class Tagger {
                 db.deleteStream(this.guildId, this.streamId);
             }
             this.createStream(video);
-            return {
-                color: 0x00ff99,
-                description: `Stream ID: ${this.streamId}, Start: <t:${parseInt(this.streamStart / 1000, 10)}:f>`
-            };
+            return utils.createEmbed(true, `Stream ID: ${this.streamId}, Start: <t:${parseInt(this.streamStart / 1000, 10)}:f>`);
         } else {
-            return {
-                color: 0xff4444,
-                description: 'Error setting stream URL'
-            };
+            return utils.createEmbed(false, 'Couldn\'t find stream');
         }
     }
 
@@ -196,10 +191,7 @@ class Tagger {
         this.tags = [];
         db.deleteMarkedTags(this.guildId);
         this.deleteStream();
-        return {
-            color: 0x00ff99,
-            description: 'Tags deleted'
-        };
+        return utils.createEmbed(true, 'Tags deleted');
     }
 
     deleteStream() {
@@ -215,10 +207,7 @@ class Tagger {
         let tagList = tags.filter(tag => !tag.deleted);
 
         if (!stream || tagList.length === 0) {
-            return {
-                color: 0xff4444,
-                description: 'No tags found'
-            };
+            return utils.createEmbed(false, 'No tags found');
         }
 
         if (userId && display?.trim() !== 'all') {
