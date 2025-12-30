@@ -210,7 +210,7 @@ class Tagger {
     }
 
     async listTags(args) {
-        const { vodLink, userId } = args || {};
+        const { vodLink, userId, display } = args || {};
         const { stream, tags } = await this.getStreamAndTags(vodLink);
         let tagList = tags.filter(tag => !tag.deleted);
 
@@ -221,7 +221,7 @@ class Tagger {
             };
         }
 
-        if (userId) {
+        if (userId && display?.trim() !== 'all') {
             tagList = tagList.filter(tag => tag.authorId === userId);
         }
         tagList = tagList.sort((a, b) => a.time - b.time);

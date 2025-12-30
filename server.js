@@ -85,7 +85,7 @@ class Server {
             case 'tag':
                 return this.tagger.createTag(message, args);
             case 'tags':
-                return this.tagger.listTags({ userId: message.author.id });
+                return this.tagger.listTags({ userId: message.author.id, display: args });
             case 'adjust':
                 this.tagger.adjustTime(message, args);
                 break;
