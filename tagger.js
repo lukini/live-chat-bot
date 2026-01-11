@@ -75,7 +75,7 @@ class Tagger {
                 const latestVideo = videos.data[0];
                 console.log(`[${this.guildId}] Latest video ID:`, latestVideo.url);
                 if (latestVideo.streamId === this.streamId) {
-                    console.log('Matches current stream');
+                    console.log(`[${this.guildId}] Matches current stream`);
                     this.createStream(latestVideo, true);
                     return;
                 }
@@ -152,7 +152,10 @@ class Tagger {
                 message.react('❌');
                 return;
             }
-            tag.time = new Date(tag.time.getTime() + (offset * 1000));
+            const newTime = tag.time.getTime() + (offset * 1000);
+            tag.time = newTime < this.streamStart.getTime() ?
+                this.streamStart :
+                new Date(newTime);
             message.react('👍');
         }
     }
