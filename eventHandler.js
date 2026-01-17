@@ -67,7 +67,7 @@ class EventHandler {
                     command = command.substring(1);
                     response = server.processCommand(message, command, args);
                 } // handle tags
-                else if (content.startsWith('`') && content.length > 1 && content[content.length-1] !== '`') {
+                else if (content.startsWith('`') && content[content.length-1] !== '`') {
                     server.tagger.createTag(message, content.substring(1).trim());
                 }
             }
@@ -110,9 +110,8 @@ class EventHandler {
         const server = this.getServer(message);
         if (message.channel.id !== server.config.liveChatChannel) return;
         
-        if (!message.content || message.content.startsWith('`')) {
-            server.tagger.deleteTag(message.id);
-        }
+        // handle tags
+        server.tagger.deleteTag(message.id);
     }
 
     handleMessageUpdate(oldMessage, newMessage) {
@@ -122,13 +121,8 @@ class EventHandler {
         if (oldMessage.channel.id !== server.config.liveChatChannel) return;
 
         // handle tags
-        if (oldMessage.content.startsWith('`') && oldMessage.content.length > 1) {
-            if (newMessage.content.startsWith('`') && newMessage.content.length > 1) {
-                server.tagger.editTag(oldMessage.id, newMessage.content.substring(1).trim());
-            } else {
-                server.tagger.deleteTag(oldMessage.id);
-            }
-        }
+        const content = this.getTagContent(newMessage.content);
+        server.tagger.editTag(oldMessage.id, content || '');
     }
 
     handleReactionAdd(reaction, user) {
@@ -136,17 +130,15 @@ class EventHandler {
         const server = this.getServer(reaction.message);
         if (reaction.message.channel.id !== server.config.liveChatChannel) return;
         
-        if (reaction.message.content.startsWith('`')) {
-            switch (reaction.emoji.name) {
-                case '👍':
-                    server.tagger.addStar(reaction.message.id);
-                    break;
-                case '❌':
-                    server.tagger.deleteTag(reaction.message.id, user.id);
-                    break;
-                default:
-                    break;
-            }
+        switch (reaction.emoji.name) {
+            case '👍':
+                server.tagger.addStar(reaction.message.id);
+                break;
+            case '❌':
+                server.tagger.deleteTag(reaction.message.id, user.id);
+                break;
+            default:
+                break;
         }
     }
 
@@ -155,17 +147,24 @@ class EventHandler {
         const server = this.getServer(reaction.message);
         if (reaction.message.channel.id !== server.config.liveChatChannel) return;
         
-        if (reaction.message.content.startsWith('`')) {
-            switch (reaction.emoji.name) {
-                case '👍':
-                    server.tagger.removeStar(reaction.message.id);
-                    break;
-                case '❌':
-                    server.tagger.undeleteTag(reaction.message.id, user.id);
-                    break;
-                default:
-                    break;
-            }
+        switch (reaction.emoji.name) {
+            case '👍':
+                server.tagger.removeStar(reaction.message.id);
+                break;
+            case '❌':
+                server.tagger.undeleteTag(reaction.message.id, user.id);
+                break;
+            default:
+                break;
+        }
+    }
+
+    getTagContent(content) {
+        if (content.startsWith('`')) {
+            return content.substring(1).trim();
+        } else {
+            const { args } = this.parseCommand(content);
+            return args;
         }
     }
 

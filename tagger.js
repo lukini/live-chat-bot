@@ -114,6 +114,8 @@ class Tagger {
     }
 
     async createTag(message, content) {
+        if (!content || content.length === 0) return;
+
         const tag = this.createProxy({
             authorId: message.author.id,
             messageId: message.id,
@@ -125,6 +127,7 @@ class Tagger {
             streamId: this.streamId,
             deleted: false
         });
+        
         db.createTag(tag);
         await message.react('👍');
         await message.react('❌');
