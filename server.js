@@ -57,6 +57,12 @@ class Server {
     async endStream() {
         try {
             if (this.config.liveChatChannel) {
+                // if chat is already closed, do nothing
+                if (!this.isChatOpen()) {
+                    console.log(`[${this.guildId}] Chat already closed, skipping stream end`);
+                    return;
+                }
+
                 console.log(`[${this.guildId}] Stream ended at`, new Date());
                 this.tagger.endStream();
 
@@ -233,8 +239,8 @@ class Server {
 
     async trackUser(user) {
         if (!user?.trim()) {
-            this.config.twitchUserId = null;
             this.removeSubscriptions();
+            this.config.twitchUserId = null;
             return utils.createEmbed(true, 'Stopped tracking user');
         }
 
