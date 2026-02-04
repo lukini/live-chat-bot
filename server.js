@@ -37,7 +37,7 @@ class Server {
         try {
             if (this.config.liveChatChannel) {
                 // if chat is already open, do nothing
-                if (this.isChatOpen()) {
+                if (await this.isChatOpen()) {
                     console.log(`[${this.guildId}] Chat already open, skipping stream start`);
                     return;
                 }
@@ -57,28 +57,24 @@ class Server {
     async endStream() {
         try {
             if (this.config.liveChatChannel) {
-                // if chat is already closed, do nothing
-                if (!this.isChatOpen()) {
-                    console.log(`[${this.guildId}] Chat already closed, skipping stream end`);
-                    return;
-                }
-
                 console.log(`[${this.guildId}] Stream ended at`, new Date());
                 this.tagger.endStream();
 
-                if (this.config.lockChannel) {
-                    this.closeChatChannel();
-                }
-                
-                if (this.tagger.streamUrl && this.config.outputChannel) {
-                    const tags = await this.tagger.listTags();
-                    if (Array.isArray(tags)) {
-                        const channel = this.client.channels.cache.get(this.config.outputChannel);
-                        for (const embed of tags) {
-                            await channel.send({ embeds: [embed] });
-                        }
+                if (await this.isChatOpen()) {
+                    if (this.config.lockChannel) {
+                        this.closeChatChannel();
                     }
-                    this.tagger.deleteTags();
+                    
+                    if (this.tagger.streamUrl && this.config.outputChannel) {
+                        const tags = await this.tagger.listTags();
+                        if (Array.isArray(tags)) {
+                            const channel = this.client.channels.cache.get(this.config.outputChannel);
+                            for (const embed of tags) {
+                                await channel.send({ embeds: [embed] });
+                            }
+                        }
+                        this.tagger.deleteTags();
+                    }
                 }
             }
         } catch (e) {
@@ -143,10 +139,14 @@ class Server {
         }
     }
 
-    isChatOpen() {
-        const channel = this.client.channels.cache.get(this.config.liveChatChannel);
-        const perms = channel.permissionsFor(this.guildId);
-        return perms.has(PermissionsBitField.Flags.SendMessages);
+    async isChatOpen() {
+        try {
+            const channel = await this.client.channels.fetch(this.config.liveChatChannel);
+            const perms = channel.permissionsFor(this.guildId);
+            return perms.has(PermissionsBitField.Flags.SendMessages);
+        } catch {
+            return false;
+        }
     }
 
     openChatChannel() {
@@ -173,9 +173,9 @@ class Server {
         }
     }
 
-    startStreamManually(url) {
+    async startStreamManually(url) {
         // if chat is already open, do nothing
-        if (!this.isChatOpen()) {
+        if (!(await this.isChatOpen())) {
             this.openChatChannel();
             this.tagger.deleteTags();
             this.tagger.setStreamUrl(url);
