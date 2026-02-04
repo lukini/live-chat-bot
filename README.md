@@ -10,6 +10,7 @@
 - !t / !tag / ` - Start a message with this to add a tag for the stream
 - !adjust - Adjust the time (in seconds) for the last tag the current user created
 - !tags - List current user's tags
+- !tags all - List all tags
 
 # Mod only commands
 - l?enableopen - Enable auto open with optional message
