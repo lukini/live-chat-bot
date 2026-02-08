@@ -151,8 +151,8 @@ class Server {
         }
     }
 
-    testOpenState() {
-        return utils.createEmbed(true, `Chat is currently ${this.isChatOpen() ? 'open' : 'closed'}`);
+    async testOpenState() {
+        return utils.createEmbed(true, `Chat is currently ${await this.isChatOpen() ? 'open' : 'closed'}`);
     }
 
     openChatChannel() {
