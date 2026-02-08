@@ -36,14 +36,11 @@ class Server {
     async startStream(e) {
         try {
             if (this.config.liveChatChannel) {
-                // if chat is already open, do nothing
-                if (await this.isChatOpen()) {
-                    console.log(`[${this.guildId}] Chat already open, skipping stream start`);
-                    return;
-                }
-
                 console.log(`[${this.guildId}] Stream started at`, e.startDate);
                 this.tagger.startStream(e);
+                
+                // log open state for debugging
+                await this.isChatOpen();
 
                 if (this.config.unlockChannel) {
                     this.openChatChannel();
@@ -60,21 +57,22 @@ class Server {
                 console.log(`[${this.guildId}] Stream ended at`, new Date());
                 this.tagger.endStream();
 
-                if (await this.isChatOpen()) {
-                    if (this.config.lockChannel) {
-                        this.closeChatChannel();
-                    }
-                    
-                    if (this.tagger.streamUrl && this.config.outputChannel) {
-                        const tags = await this.tagger.listTags();
-                        if (Array.isArray(tags)) {
-                            const channel = this.client.channels.cache.get(this.config.outputChannel);
-                            for (const embed of tags) {
-                                await channel.send({ embeds: [embed] });
-                            }
+                // log open state for debugging
+                await this.isChatOpen();
+
+                if (this.config.lockChannel) {
+                    this.closeChatChannel();
+                }
+                
+                if (this.tagger.streamUrl && this.config.outputChannel) {
+                    const tags = await this.tagger.listTags();
+                    if (Array.isArray(tags)) {
+                        const channel = this.client.channels.cache.get(this.config.outputChannel);
+                        for (const embed of tags) {
+                            await channel.send({ embeds: [embed] });
                         }
-                        this.tagger.deleteTags();
                     }
+                    this.tagger.deleteTags();
                 }
             }
         } catch (e) {
@@ -134,6 +132,8 @@ class Server {
                 return this.tagger.setStreamUrl(args);
             case 'test':
                 return this.runTest(message);
+            case 'isopen':
+                return this.testOpenState();
             default:
                 break;
         }
@@ -143,10 +143,16 @@ class Server {
         try {
             const channel = await this.client.channels.fetch(this.config.liveChatChannel);
             const perms = channel.permissionsFor(this.guildId);
-            return perms.has(PermissionsBitField.Flags.SendMessages);
-        } catch {
-            return false;
+            const isOpen = perms.has(PermissionsBitField.Flags.SendMessages);
+            console.log(`[${this.guildId}] Chat is ${isOpen ? 'open' : 'closed'}`);
+            return isOpen;
+        } catch (e) {
+            console.error(`[${this.guildId}] Failed to get open state:`, e);
         }
+    }
+
+    testOpenState() {
+        return utils.createEmbed(true, `Chat is currently ${this.isChatOpen() ? 'open' : 'closed'}`);
     }
 
     openChatChannel() {
@@ -174,12 +180,12 @@ class Server {
     }
 
     async startStreamManually(url) {
-        // if chat is already open, do nothing
-        if (!(await this.isChatOpen())) {
-            this.openChatChannel();
-            this.tagger.deleteTags();
-            this.tagger.setStreamUrl(url);
-        }
+        // log open state for debugging
+        await this.isChatOpen();
+
+        this.openChatChannel();
+        this.tagger.deleteTags();
+        this.tagger.setStreamUrl(url);
     }
     setUnlockChannel(open, message) {
         this.config.unlockChannel = open;
