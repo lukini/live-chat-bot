@@ -310,6 +310,7 @@ class Tagger {
         return text;
     }
 
+    calculateMinutes(streamStart, streamEnd) { return calculateDuration(streamStart, streamEnd, 'minutes'); }
     calculateDuration(streamStart, streamEnd, unit = 'minutes') {
         const start = streamStart;
         const end = streamEnd || new Date();
