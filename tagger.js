@@ -226,9 +226,9 @@ class Tagger {
             return utils.createEmbed(false, 'No tags found');
         }
         
-        const duration = this.calculateDuration(stream.streamStart, stream.streamEnd, 'hours');
+        const hours = this.calculateHours(stream.streamStart, stream.streamEnd);
         let tagInfo = `Stream start: <t:${parseInt(stream.streamStart / 1000, 10)}:f>, `;
-        tagInfo += `${tagList.length} tags (${(tagList.length / duration).toFixed(2)}/hr)\n`;
+        tagInfo += `${tagList.length} tags (${(tagList.length / hours).toFixed(1)}/hr)\n`;
         if (stream.streamUrl) {
             tagInfo += `Link: ${stream.streamUrl}\n`;
         }
@@ -310,22 +310,11 @@ class Tagger {
         return text;
     }
 
-    calculateMinutes(streamStart, streamEnd) { return calculateDuration(streamStart, streamEnd, 'minutes'); }
-    calculateDuration(streamStart, streamEnd, unit = 'minutes') {
+    calculateHours(streamStart, streamEnd) {
         const start = streamStart;
         const end = streamEnd || new Date();
         const diffMs = end - start;
-
-        switch(unit) {
-            case 'hours':
-                return diffMs / 3_600_000;
-
-            case 'minutes':
-                return Math.floor(diffMs / 60000);
-
-            default:
-                return diffMs;
-        }
+        return Math.ceil(diffMs / (60 * 60 * 1000));
     }
 
     calculateOffset(time, streamStart) {
