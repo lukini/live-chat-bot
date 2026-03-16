@@ -314,7 +314,7 @@ class Tagger {
         const start = streamStart;
         const end = streamEnd || new Date();
         const diffMs = end - start;
-        return Math.ceil(diffMs / (60 * 60 * 1000));
+        return diffMs / (60 * 60 * 1000);
     }
 
     calculateOffset(time, streamStart) {
