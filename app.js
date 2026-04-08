@@ -1,5 +1,5 @@
 import { readFileSync } from 'fs';
-import { Client, Events, GatewayIntentBits } from 'discord.js';
+import { Client, Events, GatewayIntentBits, Partials } from 'discord.js';
 import { NgrokAdapter } from '@twurple/eventsub-ngrok';
 import { EventSubHttpListener } from '@twurple/eventsub-http';
 import { ApiClient } from '@twurple/api';
@@ -18,8 +18,13 @@ const client = new Client({
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.GuildMessageReactions,
-        GatewayIntentBits.MessageContent
-    ] 
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.DirectMessages
+    ],
+    partials: [
+        Partials.Channel,
+        Partials.Message, 
+    ]
 });
 let eventHandler;
 

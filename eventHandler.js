@@ -1,4 +1,4 @@
-import { PermissionsBitField } from 'discord.js';
+import { AttachmentBuilder, PermissionsBitField } from 'discord.js';
 import db from './db.js';
 import Server from './server.js';
 
@@ -36,6 +36,10 @@ class EventHandler {
         return server;
     }
 
+    getServerById(guildId) {
+        return this.servers.find(s => s.guildId === guildId);
+    }
+
     createServer(guildId) {
         const config = db.createServer(guildId);
         const server = new Server(config, this.twitchApi, this.client, this.listener);
@@ -49,7 +53,6 @@ class EventHandler {
 
     async handleNewMessage(message) {
         if (message.author.bot) return;
-        const server = this.getServer(message);
 
         let response;
 
@@ -57,18 +60,29 @@ class EventHandler {
             const content = message.content;
             let { command, args } = this.parseCommand(content);
 
-            // mod commands
-            if (command.startsWith('l?') && message.member.permissions.has(PermissionsBitField.Flags.ManageMessages)) {
-                command = command.substring(2);
-                response = server.processCommandElevated(message, command, args);
-            } else if (message.channel.id === server.config.liveChatChannel) {
-                // regular commands
-                if (command.startsWith('!')) {
-                    command = command.substring(1);
-                    response = server.processCommand(message, command, args);
-                } // handle tags
-                else if (content.startsWith('`') && content[content.length-1] !== '`') {
-                    server.tagger.createTag(message, content.substring(1).trim());
+            // handle DMs
+            if (message.channel.type === 1) {
+                args = this.parseArgs(args);
+                const server = this.getServerById(args[0]);
+                if (server) {
+                    response = server.processDMCommand(command.substring(1), args.slice(1));
+                }
+            } else {
+                const server = this.getServer(message);
+
+                // mod commands
+                if (command.startsWith('l?') && message.member.permissions.has(PermissionsBitField.Flags.ManageMessages)) {
+                    command = command.substring(2);
+                    response = server.processCommandElevated(message, command, args);
+                } else if (message.channel.id === server.config.liveChatChannel) {
+                    // regular commands
+                    if (command.startsWith('!')) {
+                        command = command.substring(1);
+                        response = server.processCommand(message, command, args);
+                    } // handle tags
+                    else if (content.startsWith('`') && content[content.length-1] !== '`') {
+                        server.tagger.createTag(message, content.substring(1).trim());
+                    }
                 }
             }
         } catch (e) {
@@ -101,12 +115,19 @@ class EventHandler {
     async sendResponse(channel, response) {
         if (typeof response === 'string') {
             await channel.send(response);
+        } else if (response instanceof AttachmentBuilder) {
+            await channel.send({ files: [response] });
         } else {
             await channel.send({ embeds: [response] });
         }
     }
 
     handleMessageDeletion(message) {
+        // handle DMs
+        if (message.channel.type === 1) {
+            return;
+        }
+
         const server = this.getServer(message);
         if (message.channel.id !== server.config.liveChatChannel) return;
         
@@ -179,6 +200,11 @@ class EventHandler {
         }
         return { command, args };
     }
+
+    parseArgs(argsString) {
+        return argsString.split(' ').filter(s => s.length > 0);
+    }
+
 }
 
 export default EventHandler;

@@ -139,6 +139,15 @@ class Server {
         }
     }
 
+    processDMCommand(command, args) {
+        switch (command) {
+            case 'tagjson':
+                return this.tagger.getTagsJson({ guildId: this.guildId, vodLink: args[0] });
+            default:
+                break;
+        }
+    }
+
     async isChatOpen() {
         try {
             const channel = await this.client.channels.fetch(this.config.liveChatChannel);

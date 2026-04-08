@@ -1,3 +1,4 @@
+import { AttachmentBuilder } from 'discord.js';
 import db from './db.js';
 import utils from './utils.js';
 
@@ -212,6 +213,27 @@ class Tagger {
         this.streamEnd = null;
     }
 
+    async getTagsJson(args) {
+        let vodLink = args?.vodLink;
+        if (!vodLink) {
+            const latestStream = db.getLatestStream(this.guildId);
+            if (latestStream) {
+                vodLink = latestStream.streamUrl;
+            } else {
+                return utils.createEmbed(false, 'No stream found');
+            }
+        }
+
+        let { stream, tags } = await this.getStreamAndTags(vodLink);
+        tags = tags.sort((a, b) => a.time - b.time);
+
+        const attachment = new AttachmentBuilder(
+            Buffer.from(JSON.stringify(tags, null, 4)),
+            { name: `${stream.streamId}.json` }
+        );
+        return attachment;
+    }
+
     async listTags(args) {
         const { vodLink, userId, display } = args || {};
         const { stream, tags } = await this.getStreamAndTags(vodLink);
@@ -284,7 +306,8 @@ class Tagger {
             stream = { 
                 streamStart: this.streamStart,
                 streamEnd: this.streamEnd,
-                streamUrl: this.streamUrl
+                streamUrl: this.streamUrl,
+                streamId: this.streamId
             };
             tags = this.tags;
         }
