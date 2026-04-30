@@ -63,6 +63,7 @@ class EventHandler {
             // handle DMs
             if (message.channel.type === 1) {
                 args = this.parseArgs(args);
+                if (!args) return;
                 const server = this.getServerById(args[0]);
                 if (server) {
                     response = server.processDMCommand(command.substring(1), args.slice(1));
@@ -136,6 +137,11 @@ class EventHandler {
     }
 
     handleMessageUpdate(oldMessage, newMessage) {
+        // handle DMs
+        if (newMessage.channel.type === 1) {
+            return;
+        }
+
         if (oldMessage.author.bot) return;
         if (oldMessage.content === newMessage.content) return;
         const server = this.getServer(newMessage);
@@ -202,7 +208,7 @@ class EventHandler {
     }
 
     parseArgs(argsString) {
-        return argsString.split(' ').filter(s => s.length > 0);
+        return argsString?.split(' ').filter(s => s.length > 0);
     }
 
 }
