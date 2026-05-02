@@ -157,9 +157,10 @@ class Tagger {
                 return;
             }
             const newTime = tag.time.getTime() + (offset * 1000);
-            tag.time = newTime < this.streamStart.getTime() ?
-                this.streamStart :
-                new Date(newTime);
+            tag.time = new Date(newTime);
+            if (this.streamStart && newTime < this.streamStart.getTime()) {
+                tag.time = this.streamStart;
+            };
             message.react('👍');
         }
     }
