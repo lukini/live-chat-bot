@@ -142,10 +142,10 @@ class EventHandler {
             return;
         }
 
-        if (oldMessage.author.bot) return;
+        if (newMessage.author.bot) return;
         if (oldMessage.content === newMessage.content) return;
         const server = this.getServer(newMessage);
-        if (oldMessage.channel.id !== server.config.liveChatChannel) return;
+        if (newMessage.channel.id !== server.config.liveChatChannel) return;
 
         // handle tags
         const content = this.getTagContent(newMessage.content);
