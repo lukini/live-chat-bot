@@ -325,9 +325,11 @@ class Tagger {
         if (tag.stars > 0) {
             text += ` (${tag.stars})`;
         }
+        const offset = this.calculateOffset(tag.time, streamStart);
         if (url) {
-            const offset = this.calculateOffset(tag.time, streamStart);
             text += ` [${offset}](${url}?t=${offset})\n`;
+        } else if (streamStart) {
+            text += ` ${offset}\n`;
         } else {
             text += ` ${tag.time.getTime()}\n`;
         }
