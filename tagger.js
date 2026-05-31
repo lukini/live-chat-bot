@@ -328,8 +328,10 @@ class Tagger {
         const offset = this.calculateOffset(tag.time, streamStart);
         if (url) {
             text += ` [${offset}](${url}?t=${offset})\n`;
-        } else {
+        } else if (streamStart) {
             text += ` ${offset}\n`;
+        } else {
+            text += ` ${tag.time.getTime()}\n`;
         }
         return text;
     }
