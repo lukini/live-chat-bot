@@ -331,7 +331,7 @@ class Tagger {
         } else if (streamStart) {
             text += ` ${offset}\n`;
         } else {
-            text += ` ${tag.time.getTime()}\n`;
+            text += ` <t:${tag.time.getTime()}:T>\n`;
         }
         return text;
     }
