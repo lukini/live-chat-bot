@@ -226,6 +226,7 @@ class Tagger {
         }
 
         let { stream, tags } = await this.getStreamAndTags(vodLink);
+        if (!stream) return;
         tags = tags.sort((a, b) => a.time - b.time);
 
         const attachment = new AttachmentBuilder(
@@ -289,19 +290,22 @@ class Tagger {
     }
 
     async getStreamAndTags(vodLink) {
-        let stream, tags = [];
+        let stream, video, tags = [];
         if (vodLink) {
-            const video = await this.getVideo(vodLink.trim());
-            if (video?.streamId) {
-                const dbStream = db.getStreamById(this.guildId, video.streamId);
-                if (dbStream) {
-                    stream = dbStream;
-                    if (!stream.streamEnd && video.duration) {
-                        stream.streamEnd = this.createStreamEnd(stream.streamStart, video.duration);
-                        db.setStreamEndTime(stream.streamId, stream.streamEnd);
-                    }
-                    tags = db.getTags(this.guildId, video.streamId);
+            if (vodLink.includes('youtube')) {
+                video = { url: vodLink.trim() };
+            } else {
+                video = await this.getVideo(vodLink.trim());
+            }
+            
+            const dbStream = db.getStreamByUrl(this.guildId, video.url);
+            if (dbStream) {
+                stream = dbStream;
+                if (!stream.streamEnd && video.duration) {
+                    stream.streamEnd = this.createStreamEnd(stream.streamStart, video.duration);
+                    db.setStreamEndTime(stream.streamId, stream.streamEnd);
                 }
+                tags = db.getTags(this.guildId, dbStream.streamId);
             }
         } else {
             stream = { 

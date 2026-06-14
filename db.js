@@ -66,6 +66,15 @@ const db = {
 
     getStreamById(guildId, streamId) {
         const stream = database.prepare('SELECT * FROM Streams WHERE (guildId = ? AND streamId = ?)').get(guildId, streamId);
+        return this.convertStream(stream);
+    },
+
+    getStreamByUrl(guildId, streamUrl) {
+        const stream = database.prepare('SELECT * FROM Streams WHERE (guildId = ? AND streamUrl = ?)').get(guildId, streamUrl);
+        return this.convertStream(stream);
+    },
+
+    convertStream(stream) {
         if (stream) {
             stream.streamStart = stream.streamStart ? new Date(stream.streamStart) : null;
             stream.streamEnd = stream.streamEnd ? new Date(stream.streamEnd) : null;
