@@ -33,6 +33,7 @@ class Tagger {
         this.streamId = startEvent.id;
         this.streamUrl = null;
         this.streamEnd = null;
+        this.createStream(this.streamId, null, true);
 
         setTimeout(() => {
             this.checkForVod(startEvent.broadcasterId, 0);
@@ -59,7 +60,8 @@ class Tagger {
                 db.deleteStream(this.guildId, this.streamId);
             }
             
-            this.createStream(video);
+            //TODO: prevent creation if a stream for the url is already in the database?
+            this.createStream(video.streamId, video);
             return utils.createEmbed(true, `Stream ID: ${this.streamId}, Start: <t:${parseInt(this.streamStart / 1000, 10)}:f>`);
         } else {
             return utils.createEmbed(false, 'Couldn\'t find stream');
@@ -77,7 +79,7 @@ class Tagger {
                 console.log(`[${this.guildId}] Latest video ID:`, latestVideo.url);
                 if (latestVideo.streamId === this.streamId) {
                     console.log(`[${this.guildId}] Matches current stream`);
-                    this.createStream(latestVideo, true);
+                    db.updateStream(this.streamId, latestVideo);
                     return;
                 }
             }
@@ -101,10 +103,12 @@ class Tagger {
         }
     }
 
-    createStream(video, autoStart) {
-        this.streamId = video.streamId;
-        this.streamUrl = video.url;
-        this.streamStart = video.creationDate;
+    createStream(streamId, video, autoStart) {
+        this.streamId = streamId;
+        if (video) {
+            this.streamUrl = video.url;
+            this.streamStart = video.creationDate;
+        }
         db.createStream(this);
 
         if (autoStart) {

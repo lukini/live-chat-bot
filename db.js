@@ -48,9 +48,9 @@ const db = {
     createStream: function(stream) {
         database.prepare('INSERT OR IGNORE INTO Streams VALUES (?, ?, ?, ?, ?)').run(
             stream.streamId,
-            stream.streamStart.getTime(),
+            stream.streamStart ? stream.streamStart.getTime() : null,
             stream.streamEnd ? stream.streamEnd.getTime() : null,
-            stream.streamUrl,
+            stream.streamUrl ?? null,
             stream.guildId
         );
     },
@@ -80,6 +80,11 @@ const db = {
             stream.streamEnd = stream.streamEnd ? new Date(stream.streamEnd) : null;
         }
         return stream;
+    },
+
+    updateStream: function(streamId, video) {
+        const startTime = video.creationDate ? video.creationDate.getTime() : null;
+        database.prepare('UPDATE Streams SET streamUrl = ?, streamStart = ? WHERE streamId = ?').run(video.url ?? null, startTime, streamId);
     },
 
     setStreamEndTime: function(streamId, value) {
