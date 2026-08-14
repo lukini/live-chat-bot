@@ -113,6 +113,8 @@ class Server {
                 return this.setLiveChatChannel(args);
             case 'output':
                 return this.setOutputChannel(args);
+            case 'logging':
+                return this.setLoggingChannel(args);
             case 'track':
                 return this.trackUser(args);
             case 'status':
@@ -196,6 +198,7 @@ class Server {
         this.tagger.deleteTags();
         this.tagger.setStreamUrl(url);
     }
+    
     setUnlockChannel(open, message) {
         this.config.unlockChannel = open;
         if (message) {
@@ -228,6 +231,10 @@ class Server {
 
     setOutputChannel(channel) {
         return this.setChannel('outputChannel', channel);
+    }
+
+    setLoggingChannel(channel) {
+        return this.setChannel('loggingChannel', channel);
     }
 
     setChannel(ref, id) {
@@ -313,6 +320,34 @@ class Server {
         console.log(`[${this.guildId}] Removing subscriptions for`, this.config.twitchUserId);
         this.subs.forEach(s => s.stop());
         this.subs = [];
+    }
+
+    async logMessage(message, newMessage) {
+        const channel = this.client.channels.cache.get(this.config.loggingChannel);
+        if (!channel || message.partial) return;
+
+        const embed = {
+            color: newMessage ? 0xffff00 : 0xff4444,
+            title: `${message.author.username} (${message.author.id}) ${newMessage ? 'edited' : 'deleted'} a message`,
+            description: `**Channel:** <#${message.channel.id}>\n` +
+                         `**Message ID:** [${message.id}](${message.url})\n`
+        };
+
+        if (newMessage) {
+            embed.fields = [
+                { name: 'Before', value: message.content || '' },
+                { name: 'After', value: newMessage.content || '' }
+            ];
+        } else {
+            embed.description += `**Content:** ${message.content || ''}`;
+        }
+
+        const response = { embeds: [embed] };
+        if (!newMessage && message.attachments.size > 0) {
+            response.files = message.attachments.map(a => a.url);
+        }
+
+        await channel.send(response);
     }
 
     async runTest(message) {

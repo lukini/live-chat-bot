@@ -123,28 +123,36 @@ class EventHandler {
         }
     }
 
-    handleMessageDeletion(message) {
+    async handleMessageDeletion(message) {
         // handle DMs
         if (message.channel.type === 1) {
             return;
         }
 
         const server = this.getServer(message);
+
+        // logging
+        await server.logMessage(message);
+
         if (message.channel.id !== server.config.liveChatChannel) return;
         
         // handle tags
         server.tagger.deleteTag(message.id);
     }
 
-    handleMessageUpdate(oldMessage, newMessage) {
+    async handleMessageUpdate(oldMessage, newMessage) {
         // handle DMs
         if (newMessage.channel.type === 1) {
             return;
         }
-
+        
         if (newMessage.author.bot) return;
         if (oldMessage.content === newMessage.content) return;
         const server = this.getServer(newMessage);
+
+        // logging
+        await server.logMessage(oldMessage, newMessage);
+
         if (newMessage.channel.id !== server.config.liveChatChannel) return;
 
         // handle tags

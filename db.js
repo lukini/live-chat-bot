@@ -9,7 +9,7 @@ const db = {
         config.guildId = guildId;
 
         try {
-            database.exec(`INSERT INTO Servers VALUES (${guildId}, '', '', '', '', '', 0, 0)`);
+            database.exec(`INSERT INTO Servers VALUES (${guildId}, '', '', '', '', '', 0, 0, '')`);
         } catch (e) {
             console.error(`[${guildId}] Unable to create server config:`, e);
         }
@@ -179,7 +179,8 @@ database.exec(`
         unlockMessage TEXT,
         lockMessage TEXT,
         unlockChannel INTEGER,
-        lockChannel INTEGER
+        lockChannel INTEGER,
+        loggingChannel TEXT
     ) STRICT
 `);
 
