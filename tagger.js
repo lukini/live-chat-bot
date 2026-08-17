@@ -79,6 +79,7 @@ class Tagger {
                 console.log(`[${this.guildId}] Latest video ID:`, latestVideo.url);
                 if (latestVideo.streamId === this.streamId) {
                     console.log(`[${this.guildId}] Matches current stream`);
+                    this.streamUrl = latestVideo.url;
                     db.updateStream(this.streamId, latestVideo);
                     return;
                 }
