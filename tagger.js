@@ -59,7 +59,7 @@ class Tagger {
                 db.moveTagsToNewStream(this.guildId, this.streamId, video.streamId);
                 db.deleteStream(this.guildId, this.streamId);
             }
-            
+
             //TODO: prevent creation if a stream for the url is already in the database?
             this.createStream(video.streamId, video);
             return utils.createEmbed(true, `Stream ID: ${this.streamId}, Start: <t:${parseInt(this.streamStart / 1000, 10)}:f>`);
@@ -86,7 +86,7 @@ class Tagger {
         } catch (e) {
             console.error(`[${this.guildId}] Error checking for VOD:`, e);
         }
-        
+
         if (retryCount < 5) {
             setTimeout(() => {
                 this.checkForVod(twitchUserId, retryCount + 1);
@@ -132,7 +132,7 @@ class Tagger {
             streamId: this.streamId,
             deleted: false
         });
-        
+
         db.createTag(tag);
         await message.react('👍');
         await message.react('❌');
@@ -155,18 +155,40 @@ class Tagger {
     adjustTime(message, offset) {
         const tag = this.tags.findLast(t => t.authorId === message.author.id);
         if (tag && offset) {
-            offset = parseInt(offset.trim());
-            if (isNaN(offset)) {
-                message.react('❌');
-                return;
+            offset = offset.trim();
+            if (offset.startsWith('=')) {
+                this.adjustTimeAbsolute(message, offset.substring(1), tag);
+            } else {
+                this.adjustTimeRelative(message, offset, tag);
             }
-            const newTime = tag.time.getTime() + (offset * 1000);
-            tag.time = new Date(newTime);
-            if (this.streamStart && newTime < this.streamStart.getTime()) {
-                tag.time = this.streamStart;
-            };
-            message.react('👍');
         }
+    }
+
+    adjustTimeAbsolute(message, offset, tag) {
+        offset = this.isoDurationToMs(offset);
+
+        if (offset <= 0 || !this.streamStart) {
+            message.react('❌');
+            return;
+        }
+
+        const newTime = this.streamStart.getTime() + offset;
+        tag.time = new Date(newTime);
+        message.react('👍');
+    }
+
+    adjustTimeRelative(message, offset, tag) {
+        offset = parseInt(offset);
+        if (isNaN(offset)) {
+            message.react('❌');
+            return;
+        }
+        const newTime = tag.time.getTime() + (offset * 1000);
+        tag.time = new Date(newTime);
+        if (this.streamStart && newTime < this.streamStart.getTime()) {
+            tag.time = this.streamStart;
+        };
+        message.react('👍');
     }
 
     addStar(messageId) {
@@ -253,7 +275,7 @@ class Tagger {
         if (!stream || tagList.length === 0) {
             return utils.createEmbed(false, 'No tags found');
         }
-        
+
         const hours = this.calculateHours(stream.streamStart, stream.streamEnd);
         let tagInfo = `Stream start: <t:${parseInt(stream.streamStart / 1000, 10)}:f>, `;
         tagInfo += `${tagList.length} tags (${(tagList.length / hours).toFixed(1)}/hr)\n`;
@@ -265,7 +287,7 @@ class Tagger {
             length = 0,
             lines = [];
         const embeds = [];
-        
+
         for (let i = 0; i < tagList.length; i++) {
             const line = this.printTag(tagList[i], stream.streamUrl, stream.streamStart);
             lines.push(line);
@@ -273,8 +295,8 @@ class Tagger {
 
             // make sure the description is under 4096
             if (lines.length === this.tagsPerEmbed ||
-                i === tagList.length-1 ||
-                length + tagList[i+1].message.length > 3900
+                i === tagList.length - 1 ||
+                length + tagList[i + 1].message.length > 3900
             ) {
                 const embed = {};
                 let description = lines.join('');
@@ -301,7 +323,7 @@ class Tagger {
             } else {
                 video = await this.getVideo(vodLink.trim());
             }
-            
+
             const dbStream = db.getStreamByUrl(this.guildId, video.url);
             if (dbStream) {
                 stream = dbStream;
@@ -312,7 +334,7 @@ class Tagger {
                 tags = db.getTags(this.guildId, dbStream.streamId);
             }
         } else {
-            stream = { 
+            stream = {
                 streamStart: this.streamStart,
                 streamEnd: this.streamEnd,
                 streamUrl: this.streamUrl,

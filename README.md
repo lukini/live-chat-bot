@@ -8,7 +8,11 @@
 
 # Commands
 - !t / !tag / ` - Start a message with this to add a tag for the stream
-- !adjust - Adjust the time (in seconds) for the last tag the current user created
+- !adjust - Adjust the time (in seconds) for the last tag the current user created.<br>
+    Use `=ISO Duration` to set an absolute offset from the stream start time.<br>
+    Examples:<br>
+    `!adjust -30` adjusts the tag timestamp by -30 seconds<br>
+    `!adjust =1h30m5s` adjusts the tag timestamp to 1 hour 30 minutes and 5 seconds after stream start time
 - !tags - List current user's tags
 - !tags all - List all tags
 
