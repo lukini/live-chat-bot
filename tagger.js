@@ -167,16 +167,13 @@ class Tagger {
     adjustTimeAbsolute(message, offset, tag) {
         offset = this.isoDurationToMs(offset);
 
-        if (offset == 0 || !this.streamStart) {
+        if (offset <= 0 || !this.streamStart) {
             message.react('❌');
             return;
         }
 
         const newTime = this.streamStart.getTime() + offset;
         tag.time = new Date(newTime);
-        if (newTime < this.streamStart.getTime()) {
-            tag.time = this.streamStart;
-        }
         message.react('👍');
     }
 
